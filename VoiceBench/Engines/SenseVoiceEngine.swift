@@ -56,7 +56,7 @@ actor SenseVoiceEngine {
         guard let vad = SherpaOnnxCreateVoiceActivityDetector(&vadConfig, 32) else { throw BenchError("Silero VAD 初始化失败。") }
         defer { SherpaOnnxDestroyVoiceActivityDetector(vad) }
         let ready = ProcessInfo.processInfo.systemUptime
-        let converted = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".caf")
+        let converted = try AppTemporaryFiles.live.file(extension: "caf")
         defer { try? FileManager.default.removeItem(at: converted) }
         let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
         try AudioFiles.convert(source: source, target: converted, format: format, cancellation: cancellation)

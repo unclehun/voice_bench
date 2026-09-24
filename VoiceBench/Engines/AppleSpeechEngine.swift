@@ -60,7 +60,7 @@ actor AppleSpeechEngine {
         let analyzer = SpeechAnalyzer(modules: [module])
         try await analyzer.prepareToAnalyze(in: format)
         let ready = ProcessInfo.processInfo.systemUptime
-        let converted = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".caf")
+        let converted = try AppTemporaryFiles.live.file(extension: "caf")
         defer { try? FileManager.default.removeItem(at: converted) }
         // Consume results concurrently with file analysis; save only finalized text.
         let consumer = Task { () throws -> [Segment] in
@@ -100,6 +100,13 @@ actor AppleSpeechEngine {
             cancellation.cancel()
             consumer.cancel()
             Task { await analyzer.cancelAndFinishNow() }
+        }
+    }
+
+    func releaseReservations() async {
+        // These are this app's reservations, not permission to delete shared system model files.
+        for locale in await AssetInventory.reservedLocales {
+            _ = await AssetInventory.release(reservedLocale: locale)
         }
     }
 

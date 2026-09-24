@@ -9,6 +9,7 @@ struct BenchView: View {
     @State private var audioPicker = false
     @State private var modelPicker = false
     @State private var confirmDelete = false
+    @State private var confirmClearAll = false
 
     var body: some View {
         NavigationStack {
@@ -20,7 +21,7 @@ struct BenchView: View {
                         Text(model.message).font(.subheadline)
                         if model.busy { Spacer(); ProgressView() }
                     }
-                    if model.busy { Button("取消当前任务", role: .cancel) { model.cancel() } }
+                    if model.busy && !model.isClearingData { Button("取消当前任务", role: .cancel) { model.cancel() } }
                 }
 
                 Section("1 · 音频") {
@@ -125,6 +126,12 @@ struct BenchView: View {
                         Button("导出 JSON 和 Markdown", systemImage: "square.and.arrow.up") { model.export() }.disabled(!model.canRun)
                     }
                 }
+                Section("数据管理") {
+                    Button("清除全部本机数据与模型", role: .destructive) { confirmClearAll = true }
+                        .disabled(model.busy || model.isRecording || model.showShare)
+                    Text("包括录音、转写、参考稿、纠错、导入模型和临时报告。移除 App 时请选择“删除 App”；“卸载 App”会保留数据。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             .navigationTitle("语音对比")
             .toolbar {
@@ -151,7 +158,12 @@ struct BenchView: View {
             .alert("操作未完成", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
                 Button("知道了", role: .cancel) { model.error = nil }
             } message: { Text(model.error ?? "") }
-            .sheet(isPresented: $model.showShare) { ShareSheet(items: model.shareFiles) }
+            .sheet(isPresented: $model.showShare, onDismiss: model.finishSharing) { ShareSheet(items: model.shareFiles) }
+            .confirmationDialog("清除全部录音、结果和导入模型？", isPresented: $confirmClearAll, titleVisibility: .visible) {
+                Button("清除全部本机数据", role: .destructive) { model.clearAllData() }
+            } message: {
+                Text("此操作不可撤销，也会释放本 App 的苹果语音资源预留。已导出文件、导入原件及苹果共享系统模型不在删除范围内。")
+            }
             .onChange(of: scenePhase) { _, phase in if phase == .background { model.backgrounded() } }
             .onChange(of: model.selectedID) { _, _ in model.stopPlayback() }
             .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)) { notification in

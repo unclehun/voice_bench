@@ -13,6 +13,7 @@ enum AudioFiles {
 
     /// Bounded-memory decode/resample. The entire source is never expanded in RAM.
     static func convert(source: URL, target: URL, format: AVAudioFormat, cancellation: CancellationFlag) throws {
+        try cancellation.check()
         let input: AVAudioFile
         do { input = try AVAudioFile(forReading: source) }
         catch { throw BenchError("无法打开源音频：\(error.localizedDescription)") }
@@ -23,6 +24,8 @@ enum AudioFiles {
         var settings = format.settings
         // File storage is interleaved; the converter's in-memory buffers may be planar.
         settings[AVLinearPCMIsNonInterleaved] = false
+        var complete = false
+        defer { if !complete { try? FileManager.default.removeItem(at: target) } }
         let destination: AVAudioFile
         do {
             destination = try AVAudioFile(forWriting: target, settings: settings,
@@ -59,7 +62,7 @@ enum AudioFiles {
                 catch { throw BenchError("写入派生音频失败：\(error.localizedDescription)") }
             }
             switch status {
-            case .endOfStream: try cancellation.check(); return
+            case .endOfStream: try cancellation.check(); complete = true; return
             case .error: throw BenchError("音频解码或重采样失败。")
             case .haveData, .inputRanDry: break
             @unknown default: throw BenchError("未知音频转换状态。")

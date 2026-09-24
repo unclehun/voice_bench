@@ -8,6 +8,7 @@ final class BenchViewModel: ObservableObject {
     @Published var recordings: [Recording] = []
     @Published var selectedID: UUID?
     @Published var busy = false
+    @Published var isClearingData = false
     @Published var isRecording = false
     @Published var recordingStartedAt: Date?
     @Published var message = "导入模型和苹果中文资源后，即可开始离线对比。"
@@ -57,10 +58,12 @@ final class BenchViewModel: ObservableObject {
         guard !busy, !isRecording, let store else { return }
         begin("正在导入音频…")
         task = Task {
-            defer { finish() }
+            defer {
+                if removeSourceAfterImport { try? AppTemporaryFiles.live.remove(url) }
+                finish()
+            }
             do {
                 let item = try await store.importAudio(url)
-                if removeSourceAfterImport { try? FileManager.default.removeItem(at: url) }
                 recordings.insert(item, at: 0); selectedID = item.id
                 message = "音频已保存，两套引擎将使用这一份源文件。"
             } catch { self.error = error.localizedDescription }
@@ -107,7 +110,9 @@ final class BenchViewModel: ObservableObject {
                 let session = AVAudioSession.sharedInstance()
                 try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
                 try session.setActive(true)
-                let url = FileManager.default.temporaryDirectory.appendingPathComponent("录音-" + Date().formatted(.dateTime.hour().minute().second()).replacingOccurrences(of: ":", with: "-") + ".m4a")
+                let url = try AppTemporaryFiles.live.file(extension: "m4a", prefix: "录音-")
+                var started = false
+                defer { if !started { try? AppTemporaryFiles.live.remove(url) } }
                 let settings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC,
                                               AVSampleRateKey: session.sampleRate,
                                               AVNumberOfChannelsKey: 1,
@@ -115,9 +120,13 @@ final class BenchViewModel: ObservableObject {
                 let recorder = try AVAudioRecorder(url: url, settings: settings)
                 guard recorder.record() else { throw BenchError("无法开始录音。") }
                 self.recorder = recorder; recordingURL = url
+                started = true
                 isRecording = true; recordingStartedAt = Date()
                 message = "正在录音，停止后可依次运行两套引擎。"
-            } catch { self.error = error.localizedDescription }
+            } catch {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                self.error = error.localizedDescription
+            }
         }
     }
 
@@ -254,6 +263,38 @@ final class BenchViewModel: ObservableObject {
         }
     }
 
+    func finishSharing() {
+        let files = shareFiles
+        shareFiles = []
+        Task {
+            do { try await store?.removeExport(files) }
+            catch { self.error = "清理临时报告失败：\(error.localizedDescription)。下次启动会再次清理。" }
+        }
+    }
+
+    func clearAllData() {
+        guard !busy, !isRecording, !showShare, let store else { return }
+        stopPlayback(); player = nil
+        begin("正在清除本机数据与模型…")
+        isClearingData = true
+        task = Task {
+            defer { isClearingData = false; finish() }
+            do {
+                try await store.removeAllData()
+                recordings = []; selectedID = nil; evaluations = [:]
+                shareFiles = []; modelReceipt = nil; recordingURL = nil
+                await apple.releaseReservations()
+                await refresh()
+                message = "本机数据已清除，苹果语音资源预留已释放。共享系统模型由 iOS 管理。"
+            } catch {
+                // Reflect any deletion that succeeded before a filesystem error.
+                recordings = (try? await store.load()) ?? []
+                selectedID = recordings.first?.id
+                self.error = "清理未全部完成：\(error.localizedDescription)。可重试，或在系统设置中选择“删除 App”。"
+            }
+        }
+    }
+
     func evaluate() {
         guard canRun, let item = current else { return }
         begin("正在计算字符错误率…")
@@ -267,7 +308,10 @@ final class BenchViewModel: ObservableObject {
         }
     }
 
-    func cancel() { cancellation.cancel(); task?.cancel(); message = "正在结束当前操作；原生推理会在当前片段结束后停止。" }
+    func cancel() {
+        guard !isClearingData else { return }
+        cancellation.cancel(); task?.cancel(); message = "正在结束当前操作；原生推理会在当前片段结束后停止。"
+    }
     func backgrounded() {
         player?.stop()
         if isRecording { stopRecording() }

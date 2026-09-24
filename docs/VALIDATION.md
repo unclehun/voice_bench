@@ -48,10 +48,20 @@ swiftc -frontend -parse VoiceBench/App/*.swift VoiceBench/Audio/*.swift \
   VoiceBench/Storage/*.swift VoiceBench/Engines/*.swift VoiceBench/Correction/*.swift
 swiftc -typecheck -module-cache-path .build-local/module-cache \
   -I .build-local -F Vendor/sherpa-onnx.xcframework/ios-arm64 \
-  VoiceBench/Audio/AudioFiles.swift VoiceBench/Storage/LocalStore.swift \
+  VoiceBench/Audio/AudioFiles.swift VoiceBench/Storage/*.swift \
   VoiceBench/Engines/SenseVoiceEngine.swift
 .tools/xcodegen/bin/xcodegen generate --spec project.yml
 plutil -lint VoiceBench.xcodeproj/project.pbxproj VoiceBench/Info.plist
 ```
 
 只包含已经发生的检查；没有手机 CER、手机 RTF、内存或能耗的测试结论。
+
+## 后续：数据生命周期审计
+
+用户已反馈首版云端 IPA 构建成功并下载。本节记录后续清理修复，与首版本地验证分开。
+
+- 修复临时报告未及时删除、录音保存失败残留、音频复制失败残留；统一私有临时目录，增加冷启动残留清理和无 metadata 音频清理。
+- 录音、结果和模型目录全部排除后续设备备份；新增主动清除全部数据及释放本 App 的苹果语音资源预留入口。
+- 真实本地文件测试通过：备份属性、无效音频导入、失败报告生成、分享清理、异常退出恢复、完整模型导入与替换、全量清除、旧保存拒绝、外部原件 / 导出副本保留。
+- 本机执行备份属性读取需要访问 macOS 备份服务，初次在工具沙箱内被拒绝；获准在沙箱外仅运行临时测试后通过。
+- 新版界面、Speech 资源释放调用、分享回调和 iPhone 删除 / 重装仍需新一轮云端编译和真机验证；未声称已验证苹果共享模型立即回收。

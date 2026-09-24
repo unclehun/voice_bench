@@ -24,6 +24,7 @@
 		AC7C72EB89CA290847180BE6 /* VoiceBenchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B3C2675E1EE397E670D2A0F /* VoiceBenchApp.swift */; };
 		CCFDA7F13B63D0AF604704E4 /* BenchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4346D668EEBB9F2F30BC9C53 /* BenchView.swift */; };
 		EC36000099FEAFD4823BA8A2 /* Speech.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3B6F58AC6D6462F8A28F55D /* Speech.framework */; };
+		F1DA4AF76A6CED9004E27541 /* AppTemporaryFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9F0EA5ED330A9C89B8B80C /* AppTemporaryFiles.swift */; };
 		F7511DCA3BB2BC2C231919CE /* AudioFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A96F5755C7DD5B190155F7 /* AudioFiles.swift */; };
 		F853195F598A490DF2815DD9 /* BenchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F75EB11AB2F97E4AE2D1476 /* BenchViewModel.swift */; };
 		F8667B177023D2B46957A23F /* VoiceBenchCore in Frameworks */ = {isa = PBXBuildFile; productRef = A91F71A2FE071708FCF37673 /* VoiceBenchCore */; };
@@ -31,6 +32,7 @@
 
 /* Begin PBXFileReference section */
 		117193E8BDCF764D0FDDB300 /* LocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStore.swift; sourceTree = "<group>"; };
+		2C9F0EA5ED330A9C89B8B80C /* AppTemporaryFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemporaryFiles.swift; sourceTree = "<group>"; };
 		41369DDD178EF59E2F87F316 /* CoreML.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreML.framework; path = System/Library/Frameworks/CoreML.framework; sourceTree = SDKROOT; };
 		41A96F5755C7DD5B190155F7 /* AudioFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFiles.swift; sourceTree = "<group>"; };
 		4346D668EEBB9F2F30BC9C53 /* BenchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchView.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 		FA1863F50AD17D7C30E7CB10 /* Storage */ = {
 			isa = PBXGroup;
 			children = (
+				2C9F0EA5ED330A9C89B8B80C /* AppTemporaryFiles.swift */,
 				117193E8BDCF764D0FDDB300 /* LocalStore.swift */,
 			);
 			path = Storage;
@@ -254,6 +257,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F1DA4AF76A6CED9004E27541 /* AppTemporaryFiles.swift in Sources */,
 				2EB499185C92AAEA0FEE12DC /* AppleSpeechEngine.swift in Sources */,
 				17B53734EF506D8A1FFEFB6E /* AppleTextCorrector.swift in Sources */,
 				F7511DCA3BB2BC2C231919CE /* AudioFiles.swift in Sources */,
