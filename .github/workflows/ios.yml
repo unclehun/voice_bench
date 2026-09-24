@@ -1,0 +1,49 @@
+name: Build unsigned iPhone demo
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: voicebench-ios
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source-only repository
+        run: python3 scripts/check_git_files.py
+      - name: Verify toolchain
+        run: |
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+      - name: Core tests
+        run: swift test
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .downloads/sherpa-*.zip
+            .downloads/onnxruntime-*.zip
+            .downloads/xcodegen-*.zip
+          key: ios-dependencies-${{ hashFiles('config/dependencies.json') }}
+      - name: Build device IPA
+        run: bash scripts/build_unsigned.sh
+      - name: Save IPA and build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoiceBench-${{ github.run_number }}
+          retention-days: 3
+          if-no-files-found: warn
+          path: |
+            build/VoiceBench-unsigned.ipa
+            build/VoiceBench-unsigned.ipa.sha256
+            build/toolchain.txt
+            build/build.log
+            build/DerivedData/Build/Products/Release-iphoneos/*.dSYM
+            config/dependencies.json

@@ -1,0 +1,69 @@
+{
+  "environment" : {
+    "test" : "synthetic fixture, not an ASR result"
+  },
+  "evaluation" : [
+    {
+      "correctedCER" : null,
+      "deltaCER" : null,
+      "rawCER" : {
+        "deletions" : 1,
+        "hypothesisCount" : 1,
+        "insertions" : 0,
+        "rate" : 0.5,
+        "referenceCount" : 2,
+        "substitutions" : 0
+      },
+      "rtf" : 0.20000000000000001,
+      "runID" : "51D66D81-2885-4CAF-A45C-F5F995080971"
+    }
+  ],
+  "exportedAt" : "2026-09-24T09:31:59Z",
+  "normalizationVersion" : "unicode-scalars-punctuation-whitespace-latin-case-v1",
+  "recording" : {
+    "channels" : 1,
+    "context" : "",
+    "createdAt" : "2026-09-24T09:31:59Z",
+    "duration" : 10,
+    "fileName" : "test.wav",
+    "id" : "693EC85F-EC1B-4B32-BFAA-C77DD3567687",
+    "name" : "测试",
+    "reference" : "你好",
+    "revision" : 0,
+    "runs" : [
+      {
+        "configuration" : {
+
+        },
+        "correction" : {
+          "blocks" : [
+
+          ],
+          "context" : "",
+          "elapsedMS" : null,
+          "error" : "上次纠错未正常结束。",
+          "model" : "system-managed/unknown",
+          "promptHash" : null,
+          "promptVersion" : "minimal-proofread-v1",
+          "status" : "interrupted",
+          "text" : null
+        },
+        "engine" : "apple_speechtranscriber",
+        "error" : "上次运行未正常结束，请重新执行。",
+        "id" : "51D66D81-2885-4CAF-A45C-F5F995080971",
+        "modelVersion" : "system-managed/unknown",
+        "preparationMS" : null,
+        "rawText" : "你",
+        "segments" : [
+
+        ],
+        "startedAt" : "2026-09-24T09:31:59Z",
+        "status" : "completed",
+        "transcriptionMS" : 2000
+      }
+    ],
+    "sampleRate" : 16000,
+    "sha256" : "not-a-real-audio-hash"
+  },
+  "schemaVersion" : 1
+}

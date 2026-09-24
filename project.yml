@@ -1,0 +1,65 @@
+name: VoiceBench
+options:
+  minimumXcodeGenVersion: 2.44.1
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    CODE_SIGNING_ALLOWED: NO
+    SWIFT_STRICT_CONCURRENCY: targeted
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+  configs:
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+packages:
+  VoiceBenchCore:
+    path: .
+targets:
+  VoiceBench:
+    type: application
+    platform: iOS
+    sources:
+      - VoiceBench
+      - path: THIRD_PARTY_NOTICES.md
+        buildPhase: resources
+      - path: licenses
+        type: folder
+        buildPhase: resources
+      - path: config/model-manifest.json
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.voicebench.demo
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: VoiceBench/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        OTHER_LDFLAGS: ["$(inherited)", "-lc++"]
+    dependencies:
+      - package: VoiceBenchCore
+        product: VoiceBenchCore
+      - framework: Vendor/sherpa-onnx.xcframework
+        embed: false
+      - framework: Vendor/onnxruntime.xcframework
+        embed: false
+      - sdk: Accelerate.framework
+      - sdk: CoreML.framework
+      - sdk: AVFoundation.framework
+      - sdk: Speech.framework
+      - sdk: FoundationModels.framework
+schemes:
+  VoiceBench:
+    build:
+      targets:
+        VoiceBench: all
+    run:
+      config: Debug
+    archive:
+      config: Release
