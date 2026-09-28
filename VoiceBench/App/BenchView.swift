@@ -61,8 +61,13 @@ struct BenchView: View {
                 }
 
                 Section {
-                    statusRow("SenseVoiceSmall INT8", detail: model.modelReceipt == nil ? "需要导入模型目录" : "模型文件就绪", ready: model.modelReceipt != nil)
-                    Button("导入模型目录") { modelPicker = true }.disabled(model.busy || model.isRecording)
+                    statusRow("SenseVoiceSmall INT8", detail: model.modelDetail, ready: model.modelReceipt != nil)
+                    Button("从默认目录载入", systemImage: "arrow.clockwise") { model.importDefaultModels() }
+                        .disabled(model.busy || model.isRecording)
+                    Button("选择其他模型目录…", systemImage: "folder") { modelPicker = true }
+                        .disabled(model.busy || model.isRecording)
+                    Text("默认位置：在“文件”App → 在我的 iPhone → 语音对比（有些系统显示 VoiceBench）→ SenseVoiceSmall_INT8。放入完整模型后，App 启动时会自动载入。")
+                        .font(.caption).foregroundStyle(.secondary)
                     statusRow("Apple SpeechTranscriber", detail: model.speech.detail, ready: model.speech.installed)
                     if model.speech.available && !model.speech.installed {
                         Button("准备苹果中文资源（需要联网）") { model.prepareApple() }.disabled(model.busy || model.isRecording)

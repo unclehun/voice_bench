@@ -23,4 +23,7 @@ assert "FoundationModels.framework" in spec
 assert "Speech.framework" in spec
 assert "workflow_dispatch:" in (root / ".github/workflows/ios.yml").read_text()
 assert "NSSpeechRecognitionUsageDescription" not in (root / "VoiceBench/Info.plist").read_text(), "Only on-device SpeechTranscriber is used"
+info = (root / "VoiceBench/Info.plist").read_text()
+assert "<key>UIFileSharingEnabled</key><true/>" in info
+assert "<key>LSSupportsOpeningDocumentsInPlace</key><true/>" in info
 print("PASS: scripts, plists, JSON and deployment invariants. iOS SDK compilation still required.")

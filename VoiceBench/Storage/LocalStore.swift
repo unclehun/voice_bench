@@ -10,9 +10,13 @@ struct ModelReceipt: Codable, Sendable {
 
 actor LocalStore {
     static let requiredModels = ["model.int8.onnx", "tokens.txt", "silero_vad.onnx"]
+    static let defaultModelDirectoryName = "SenseVoiceSmall_INT8"
     let root: URL
     let models: URL
     let audio: URL
+    /// This is `Documents/SenseVoiceSmall_INT8`, visible in Files as
+    /// `On My iPhone > 语音对比 (or VoiceBench) > SenseVoiceSmall_INT8`.
+    let defaultModelDirectory: URL
     let temporaryFiles: AppTemporaryFiles
     private let records: URL
     private var savedRevisions: [UUID: Int] = [:]
@@ -21,16 +25,26 @@ actor LocalStore {
     init(baseURL: URL? = nil, modelManifestURL: URL? = nil, temporaryFiles: AppTemporaryFiles? = nil) throws {
         let manager = FileManager.default
         self.modelManifestURL = modelManifestURL ?? Bundle.main.url(forResource: "model-manifest", withExtension: "json")
-        if let baseURL { root = baseURL }
-        else {
+        if let baseURL {
+            root = baseURL
+            defaultModelDirectory = baseURL.appendingPathComponent("Documents", isDirectory: true)
+                .appendingPathComponent(Self.defaultModelDirectoryName, isDirectory: true)
+        } else {
             root = try manager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
                 .appendingPathComponent("VoiceBench", isDirectory: true)
+            defaultModelDirectory = try manager.url(for: .documentDirectory, in: .userDomainMask,
+                                                     appropriateFor: nil, create: true)
+                .appendingPathComponent(Self.defaultModelDirectoryName, isDirectory: true)
         }
         models = root.appendingPathComponent("Models", isDirectory: true)
         audio = root.appendingPathComponent("Audio", isDirectory: true)
         records = root.appendingPathComponent("Records", isDirectory: true)
         self.temporaryFiles = temporaryFiles ?? baseURL.map { AppTemporaryFiles(root: $0.appendingPathComponent("Temporary")) } ?? .live
         try Self.prepareDirectories(root: root)
+        try manager.createDirectory(at: defaultModelDirectory, withIntermediateDirectories: true)
+        var sourceURL = defaultModelDirectory
+        var sourceValues = URLResourceValues(); sourceValues.isExcludedFromBackup = true
+        try sourceURL.setResourceValues(sourceValues)
         try self.temporaryFiles.reset()
         #if os(iOS)
         if baseURL == nil { try AppTemporaryFiles.removeLegacyFiles(in: manager.temporaryDirectory) }
@@ -110,6 +124,29 @@ actor LocalStore {
               Self.requiredModels.allSatisfy({ FileManager.default.fileExists(atPath: models.appendingPathComponent($0).path) }) else { return nil }
         return receipt
     }
+    /// Imports the fixed Files-visible folder once, only when no internal model is installed yet.
+    /// An empty or partially copied folder is treated as not ready, so launch never fails mid-transfer.
+    func importDefaultModelsIfComplete() throws -> ModelReceipt? {
+        guard modelReceipt() == nil, hasCompleteModelSet(at: defaultModelDirectory) else { return nil }
+        return try importModels(defaultModelDirectory)
+    }
+    /// User-triggered reload. Unlike the launch path, report incomplete/corrupt default folders clearly.
+    func importDefaultModels() throws -> ModelReceipt {
+        let missing = Self.requiredModels.filter {
+            !FileManager.default.fileExists(atPath: defaultModelDirectory.appendingPathComponent($0).path)
+        }
+        guard missing.isEmpty else {
+            throw BenchError("默认目录 SenseVoiceSmall_INT8 缺少：\(missing.joined(separator: "、"))")
+        }
+        return try importModels(defaultModelDirectory)
+    }
+    private func hasCompleteModelSet(at directory: URL) -> Bool {
+        return Self.requiredModels.allSatisfy { name in
+            let url = directory.appendingPathComponent(name)
+            let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+            return values?.isRegularFile == true && (values?.fileSize ?? 0) > 0
+        }
+    }
     func importModels(_ source: URL) throws -> ModelReceipt {
         let access = source.startAccessingSecurityScopedResource()
         defer { if access { source.stopAccessingSecurityScopedResource() } }
@@ -177,8 +214,15 @@ actor LocalStore {
             }
         }
         if manager.fileExists(atPath: root.path) { try manager.removeItem(at: root) }
+        // The fixed Files-visible source is part of this app's container too. Empty it, then recreate
+        // the named folder so the user knows exactly where to put a model next time.
+        if manager.fileExists(atPath: defaultModelDirectory.path) { try manager.removeItem(at: defaultModelDirectory) }
         try temporaryFiles.reset()
         try Self.prepareDirectories(root: root)
+        try manager.createDirectory(at: defaultModelDirectory, withIntermediateDirectories: true)
+        var sourceURL = defaultModelDirectory
+        var sourceValues = URLResourceValues(); sourceValues.isExcludedFromBackup = true
+        try sourceURL.setResourceValues(sourceValues)
         savedRevisions.removeAll()
     }
 }

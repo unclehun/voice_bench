@@ -14,6 +14,7 @@ final class BenchViewModel: ObservableObject {
     @Published var message = "导入模型和苹果中文资源后，即可开始离线对比。"
     @Published var error: String?
     @Published var modelReceipt: ModelReceipt?
+    @Published var modelDetail = "正在检查默认模型目录…"
     @Published var speech = SpeechCapability(available: false, installed: false, detail: "正在检查…")
     @Published var correctionUnavailable: String? = "正在检查…"
     @Published var lowMemory = false
@@ -49,7 +50,20 @@ final class BenchViewModel: ObservableObject {
     }
 
     func refresh() async {
+        do {
+            if let receipt = try await store?.importDefaultModelsIfComplete() {
+                modelReceipt = receipt
+                message = "已从默认目录 SenseVoiceSmall_INT8 载入模型。"
+            }
+        } catch {
+            modelDetail = "默认目录模型校验失败：\(error.localizedDescription)"
+        }
         modelReceipt = await store?.modelReceipt()
+        if modelReceipt != nil {
+            modelDetail = "模型文件已就绪；下次启动无需再次选择目录。"
+        } else if modelDetail == "正在检查默认模型目录…" {
+            modelDetail = "默认目录为空或尚未传完模型；也可手动选择其他目录。"
+        }
         speech = await apple.capability()
         correctionUnavailable = await corrector.availability()
     }
@@ -75,8 +89,28 @@ final class BenchViewModel: ObservableObject {
         begin("正在复制并校验模型，可能需要一些时间…")
         task = Task {
             defer { finish() }
-            do { modelReceipt = try await store.importModels(url); message = "模型文件已就绪，首次运行将检查能否初始化。" }
+            do {
+                modelReceipt = try await store.importModels(url)
+                modelDetail = "已从手工选择的目录载入；模型已保存到 App 内部。"
+                message = "模型文件已就绪，首次运行将检查能否初始化。"
+            }
             catch { self.error = error.localizedDescription }
+        }
+    }
+
+    func importDefaultModels() {
+        guard !busy, !isRecording, let store else { return }
+        begin("正在从默认目录载入并校验模型…")
+        task = Task {
+            defer { finish() }
+            do {
+                modelReceipt = try await store.importDefaultModels()
+                modelDetail = "已从默认目录 SenseVoiceSmall_INT8 载入模型。"
+                message = "默认目录模型已就绪，首次运行将检查能否初始化。"
+            } catch {
+                self.error = error.localizedDescription
+                modelDetail = "默认目录尚不可用；可补齐文件或手动选择目录。"
+            }
         }
     }
 
@@ -283,6 +317,7 @@ final class BenchViewModel: ObservableObject {
                 try await store.removeAllData()
                 recordings = []; selectedID = nil; evaluations = [:]
                 shareFiles = []; modelReceipt = nil; recordingURL = nil
+                modelDetail = "默认目录已清空；可重新传入 SenseVoiceSmall_INT8。"
                 await apple.releaseReservations()
                 await refresh()
                 message = "本机数据已清除，苹果语音资源预留已释放。共享系统模型由 iOS 管理。"

@@ -45,6 +45,9 @@ struct AudioChecks {
         }
         let store = try LocalStore(baseURL: base.appendingPathComponent("Store"),
                                   modelManifestURL: URL(fileURLWithPath: "config/model-manifest.json"))
+        guard FileManager.default.fileExists(atPath: store.defaultModelDirectory.path) else {
+            throw BenchError("Default Files-visible model directory was not created")
+        }
         fputs("Audio check: import and persist\n", stderr)
         var item = try await store.importAudio(source)
         guard item.sha256 == hash, item.channels == 2 else { throw BenchError("Import metadata") }
@@ -61,6 +64,9 @@ struct AudioChecks {
             guard try url.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true else {
                 throw BenchError("App data directory still included in backup: \(name)")
             }
+        }
+        guard try store.defaultModelDirectory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true else {
+            throw BenchError("Default model source directory still included in backup")
         }
         let exports = try await store.export(item, environment: [:])
         guard exports.count == 2, exports.allSatisfy({ FileManager.default.fileExists(atPath: $0.path) }) else { throw BenchError("Report export") }
@@ -104,6 +110,17 @@ struct AudioChecks {
         if CommandLine.arguments.count > 1 {
             fputs("Audio check: import full pinned model directory\n", stderr)
             let folder = URL(fileURLWithPath: CommandLine.arguments[1])
+            fputs("Audio check: default model directory auto-discovery\n", stderr)
+            for name in LocalStore.requiredModels + ["manifest.json"] {
+                try FileManager.default.copyItem(at: folder.appendingPathComponent(name), to: store.defaultModelDirectory.appendingPathComponent(name))
+            }
+            let defaultReceipt = try await store.importDefaultModelsIfComplete()
+            guard defaultReceipt?.files.count == 3, await store.modelReceipt()?.files == defaultReceipt?.files else {
+                throw BenchError("Default model directory was not automatically imported")
+            }
+            guard try await store.importDefaultModelsIfComplete() == nil else {
+                throw BenchError("Default model directory overwrote an installed model on repeat launch")
+            }
             let receipt = try await store.importModels(folder)
             guard receipt.files.count == 3, await store.modelReceipt() != nil else { throw BenchError("Model import did not persist") }
             fputs("Audio check: repeat model replacement\n", stderr)
@@ -130,6 +147,7 @@ struct AudioChecks {
         guard try await store.load().isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: audioDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: modelDirectory.path).isEmpty,
+              try FileManager.default.contentsOfDirectory(atPath: store.defaultModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: temporary.root.path).isEmpty,
               FileManager.default.fileExists(atPath: externalCopy.path),
               FileManager.default.fileExists(atPath: source.path) else { throw BenchError("Clear all left app files, resurrected data or deleted external inputs") }

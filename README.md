@@ -112,10 +112,12 @@ python3 scripts/prepare_models.py
 
 脚本下载指定的 INT8 模型及 VAD，保留模型 LICENSE，对照固定哈希校验，生成 `manifest.json`。现有输出目录不会被覆盖；可用 `--output` 选择新目录。
 
-将**完整文件夹**传到 iPhone“文件”App 可访问的位置，然后在 Demo 点“导入模型目录”。应直接选择包含下列文件的目录：
+将完整模型文件夹传到 iPhone 后，把文件夹命名为 **`SenseVoiceSmall_INT8`** 并放入 **“文件”App → 在我的 iPhone → 语音对比**（少数系统会显示为 **VoiceBench**）。App 启动时会自动校验并载入；之后不需要重复选择目录。首次启动 App 会创建这个空目录。
+
+也可以点“选择其他模型目录…”从 iCloud Drive、网盘或任意文件位置手工选择，App 会复制并校验模型到私有目录。两种方式都应使用包含下列文件的完整文件夹：
 
 ```text
-VoiceBenchModels/
+SenseVoiceSmall_INT8/
   model.int8.onnx
   tokens.txt
   silero_vad.onnx
@@ -124,7 +126,7 @@ VoiceBenchModels/
   VAD_LICENSE
 ```
 
-如果传输方式需要 ZIP，可先压缩目录，在 iPhone“文件”App 解压后选择文件夹。App 不解析 tar.bz2 / ZIP，也不会误把压缩包当模型。
+如果传输方式需要 ZIP，可先压缩目录，在 iPhone“文件”App 解压后移动或改名为 `SenseVoiceSmall_INT8`。App 不解析 tar.bz2 / ZIP，也不会误把压缩包当模型。
 
 App 在导入时校验所选内容与内置 `model-manifest.json` 一致；验证通过后替换模型目录。只支持本 Demo 指定的模型版本，损坏文件或其他同名模型会被拒绝。
 

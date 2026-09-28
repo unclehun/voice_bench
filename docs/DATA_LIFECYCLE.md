@@ -22,6 +22,7 @@ VoiceBench 自己创建的持久文件全部存放在 iOS App 私有沙箱中。
 | 已保存录音及导入副本 | `Library/Application Support/VoiceBench/Audio` | 删除单条录音、清除全部或删除 App |
 | 转写、参考稿、背景、纠错和运行状态 | `Library/Application Support/VoiceBench/Records` | 与对应录音一起删除，或清除全部 / 删除 App |
 | 已导入 SenseVoice / VAD 模型及 receipt | `Library/Application Support/VoiceBench/Models` | 替换模型、清除全部或删除 App |
+| 默认模型源目录（文件 App 可见） | `Documents/SenseVoiceSmall_INT8` | 清除全部或删除 App |
 | 模型导入中间目录 | `Library/Application Support/VoiceBench/Import-UUID` | 导入结束，不论成功与否；异常退出则下次启动清理 |
 | 录制中的音频 | `tmp/VoiceBench/录音-UUID.m4a` | 保存流程结束，不论成功与否；录制失败也清理 |
 | 两引擎格式转换音频 | `tmp/VoiceBench/UUID.caf` | 转写结束、失败或取消；转换失败自身也清理部分输出 |
@@ -35,7 +36,7 @@ VoiceBench 自己创建的持久文件全部存放在 iOS App 私有沙箱中。
 
 界面底部 **数据管理 → 清除全部本机数据与模型** 经过确认后：
 
-1. 删除 VoiceBench 私有录音、metadata、模型和临时工作文件。
+1. 删除 VoiceBench 私有录音、metadata、模型、`Documents/SenseVoiceSmall_INT8` 中的模型源文件和临时工作文件；随后仅重建空的固定目录。
 2. 清空界面中的记录、评测和分享引用，阻止旧的异步保存重新生成已删除记录。
 3. 调用 `AssetInventory.release(reservedLocale:)` 释放本 App 的苹果语音资源预留。
 
@@ -45,7 +46,7 @@ VoiceBench 自己创建的持久文件全部存放在 iOS App 私有沙箱中。
 
 - **苹果 SpeechTranscriber 系统资源**：苹果在系统侧管理，多个 App 共享。释放预留不等于立即删除模型，实际回收时间由系统决定。
 - **Foundation Models 系统模型**：属于 Apple Intelligence 系统资源，不是 Demo 私有模型，Demo 不能删除。
-- **导入原件及主动导出副本**：例如“文件”App / iCloud Drive 中用于导入的模型目录、ZIP、源音频，或主动保存和分享出去的报告；这些是用户或接收方持有的独立文件，需到保存位置手动删除，必要时清空“最近删除”。
+- **手工选择的导入原件及主动导出副本**：例如 iCloud Drive 中用于手工导入的模型目录、ZIP、源音频，或主动保存和分享出去的报告；这些是用户或接收方持有的独立文件，需到保存位置手动删除，必要时清空“最近删除”。默认的 `在我的 iPhone → 语音对比（或 VoiceBench）→ SenseVoiceSmall_INT8` 属于本 App 容器，会随“删除 App”删除。
 - **已有设备备份**：新版将整个 VoiceBench 持久目录及子目录设为不参与后续系统备份，但无法追溯删除此前由旧版本产生的备份，也不能删除用户手动复制的内容。
 - **Mac / GitHub 文件**：IPA、源代码、构建产物以及 Sideloadly 的签名与续签缓存不在手机 App 沙箱中，删除手机 App 不会清理它们。
 
