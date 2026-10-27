@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		065C606A93592887A5EB98F5 /* PCMFileReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC970CCAF6CCDA56E245FE5 /* PCMFileReader.swift */; };
 		17B53734EF506D8A1FFEFB6E /* AppleTextCorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67E622CB0DFE195B9756D101 /* AppleTextCorrector.swift */; };
 		2EB499185C92AAEA0FEE12DC /* AppleSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */; };
 		2FEBDE7BD4A196C2146881BD /* SenseVoiceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */; };
@@ -25,6 +26,7 @@
 		CCFDA7F13B63D0AF604704E4 /* BenchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4346D668EEBB9F2F30BC9C53 /* BenchView.swift */; };
 		EC36000099FEAFD4823BA8A2 /* Speech.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3B6F58AC6D6462F8A28F55D /* Speech.framework */; };
 		F1DA4AF76A6CED9004E27541 /* AppTemporaryFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9F0EA5ED330A9C89B8B80C /* AppTemporaryFiles.swift */; };
+		F4AD3B162FA8206BA8E63197 /* AppleSpeechDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F9AFF8597E67D409A7E17BD /* AppleSpeechDiagnostics.swift */; };
 		F7511DCA3BB2BC2C231919CE /* AudioFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A96F5755C7DD5B190155F7 /* AudioFiles.swift */; };
 		F853195F598A490DF2815DD9 /* BenchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F75EB11AB2F97E4AE2D1476 /* BenchViewModel.swift */; };
 		F8667B177023D2B46957A23F /* VoiceBenchCore in Frameworks */ = {isa = PBXBuildFile; productRef = A91F71A2FE071708FCF37673 /* VoiceBenchCore */; };
@@ -46,7 +48,9 @@
 		733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechEngine.swift; sourceTree = "<group>"; };
 		753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenseVoiceEngine.swift; sourceTree = "<group>"; };
 		76A69D53F4B7C7A2E60AA21D /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "Vendor/sherpa-onnx.xcframework"; sourceTree = "<group>"; };
+		8EC970CCAF6CCDA56E245FE5 /* PCMFileReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMFileReader.swift; sourceTree = "<group>"; };
 		99EDD6C38722E840CAFE1640 /* voice_bench */ = {isa = PBXFileReference; lastKnownFileType = folder; name = voice_bench; path = .; sourceTree = SOURCE_ROOT; };
+		9F9AFF8597E67D409A7E17BD /* AppleSpeechDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechDiagnostics.swift; sourceTree = "<group>"; };
 		A3B6F58AC6D6462F8A28F55D /* Speech.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Speech.framework; path = System/Library/Frameworks/Speech.framework; sourceTree = SDKROOT; };
 		A7148698F0BFFF89EB1F680E /* model-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "model-manifest.json"; sourceTree = "<group>"; };
 		BE1640A62FA32CB4481B3771 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -92,6 +96,7 @@
 		1EECEB2338C06D489327FFAD /* Engines */ = {
 			isa = PBXGroup;
 			children = (
+				9F9AFF8597E67D409A7E17BD /* AppleSpeechDiagnostics.swift */,
 				733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */,
 				753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */,
 			);
@@ -149,6 +154,7 @@
 			isa = PBXGroup;
 			children = (
 				41A96F5755C7DD5B190155F7 /* AudioFiles.swift */,
+				8EC970CCAF6CCDA56E245FE5 /* PCMFileReader.swift */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
@@ -258,12 +264,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				F1DA4AF76A6CED9004E27541 /* AppTemporaryFiles.swift in Sources */,
+				F4AD3B162FA8206BA8E63197 /* AppleSpeechDiagnostics.swift in Sources */,
 				2EB499185C92AAEA0FEE12DC /* AppleSpeechEngine.swift in Sources */,
 				17B53734EF506D8A1FFEFB6E /* AppleTextCorrector.swift in Sources */,
 				F7511DCA3BB2BC2C231919CE /* AudioFiles.swift in Sources */,
 				CCFDA7F13B63D0AF604704E4 /* BenchView.swift in Sources */,
 				F853195F598A490DF2815DD9 /* BenchViewModel.swift in Sources */,
 				AC149280006A93A7413674B4 /* LocalStore.swift in Sources */,
+				065C606A93592887A5EB98F5 /* PCMFileReader.swift in Sources */,
 				2FEBDE7BD4A196C2146881BD /* SenseVoiceEngine.swift in Sources */,
 				AC7C72EB89CA290847180BE6 /* VoiceBenchApp.swift in Sources */,
 			);

@@ -249,7 +249,7 @@ final class BenchViewModel: ObservableObject {
                         output = try await sense.transcribe(source: source, models: models, language: chosenLanguage,
                                                            lowMemory: lowMemory, cancellation: flag, progress: progress)
                     } else {
-                        output = try await apple.transcribe(source: source, cancellation: flag, progress: progress)
+                        output = try await apple.transcribe(source: source, runID: runID, cancellation: flag, progress: progress)
                     }
                     try flag.check()
                     run.status = .completed; run.preparationMS = output.preparationMS
@@ -258,6 +258,9 @@ final class BenchViewModel: ObservableObject {
                     try await replace(run, recordingID: recording.id)
                 } catch {
                     if let partial = findRun(runID, recordingID: recording.id) { run = partial }
+                    if let failure = error as? AppleSpeechFailure {
+                        run.configuration.merge(failure.configuration) { _, new in new }
+                    }
                     run.status = flag.isCancelled || Task.isCancelled ? (interrupted ? .interrupted : .cancelled) : .failed
                     run.error = run.status == .interrupted ? "App 进入后台或发生系统中断，未完成结果保留，请在前台重新运行。" : error.localizedDescription
                     do { try await replace(run, recordingID: recording.id) }

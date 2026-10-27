@@ -66,3 +66,11 @@ plutil -lint VoiceBench.xcodeproj/project.pbxproj VoiceBench/Info.plist
 - 本机执行备份属性读取需要访问 macOS 备份服务，初次在工具沙箱内被拒绝；获准在沙箱外仅运行临时测试后通过。
 - 新版界面、Speech 资源释放调用、分享回调和 iPhone 删除 / 重装仍需新一轮云端编译和真机验证；未声称已验证苹果共享模型立即回收。
 - 新增固定模型目录 `Documents/SenseVoiceSmall_INT8`：本机真实文件测试已验证首次自动导入、重复启动不覆盖已安装模型、完整性 / SHA-256 校验、备份排除属性以及“清除全部”后模型源目录为空；仍需新的云端构建与 iPhone“文件”App 路径真机确认。
+
+## 2026-10-27：Apple Speech 输入与诊断
+
+- USB 实时日志捕获到此前版本两次相同失败：成功加载本地语音模型并输入 35 块共 283,946 字节（16 kHz 单声道 Int16，141,973 帧），在 2,709 帧尾块后出现 `Foundation._GenericObjCError Code=0`。该现象支持排查文件末尾处理，但尚不能证明系统缺陷。
+- Apple 输入改为按需读取的 `AnalyzerInput` 序列，显式处理剩余帧数及结束时间；保留系统返回的兼容格式。新增带运行 ID 的阶段日志，并将成功 / 失败诊断保存到现有 JSON 报告。
+- `bash scripts/check_apple_speech.sh`：实际执行并通过核心 11,930 项检查，以及 Int16 / Float32、交错 / 非交错、1 / 4096 / 8192 / 141973 帧等 16 组 PCM 文件读取、真实 48 kHz 双声道到 16 kHz 单声道 Int16 转换、独立缓冲区、空输入拒绝、取消、底层错误与报告导出检查。
+- 全部 App Swift 源码的 frontend parse、工程生成、pbxproj / plist 检查和 Git 文件检查通过。GitHub Actions 已增加相同 PCM 和诊断检查。
+- 本机仍为 Swift 5.8.1 / Command Line Tools，没有 iOS 26 SDK；上述结果不包含新版 Speech API 的 iOS SDK 编译、SpeechAnalyzer 执行或修改后的真机识别结果。详细复测方法见 [Apple Speech 调试](APPLE_SPEECH_DEBUG.md)。

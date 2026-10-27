@@ -26,6 +26,8 @@ jobs:
         run: swift test
       - name: Audio and storage cleanup tests
         run: bash scripts/check_audio.sh
+      - name: Apple Speech PCM and diagnostics checks
+        run: bash scripts/check_apple_speech.sh
       - uses: actions/cache@v4
         with:
           path: |

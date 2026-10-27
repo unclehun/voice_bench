@@ -23,6 +23,8 @@
 
 主测试目标为用户的 iPhone 17 Pro / iOS 27。旧机只有通过两引擎实际离线转写后才列入兼容清单。Foundation Models 另受 Apple Intelligence 设备资格、地区、启用状态与语言限制，不能用它是否可用来决定 SpeechTranscriber 是否可用。
 
+Apple Speech 重复报 `Foundation._GenericObjCError Code=0` 时，新版采用逐块 PCM 输入，并将阶段、帧数、格式和错误链写入运行报告。构建后的真机复测与 USB 日志步骤见 [Apple Speech 调试](docs/APPLE_SPEECH_DEBUG.md)。
+
 本地 Mac 13.7.8 + Command Line Tools 可以编辑代码和运行部分校验；无法编译 iOS App。完整构建在有 Xcode 26+ 的另一台 Mac / 云端 macOS 上进行。本机无需安装 Xcode。
 
 ## 已准备的本地文件

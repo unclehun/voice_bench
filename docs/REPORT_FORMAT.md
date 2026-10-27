@@ -24,3 +24,5 @@
 没有获得的数据使用 null，不填 0 冒充测量。无参考稿的 CER 为 null；规范化后空参考稿的 CER 对象仍记录编辑计数，但 rate 为 null。失败 / 取消 ASR 不计算完整 CER 或 RTF。
 
 本地保存的 metadata JSON 使用内部 Codable 日期格式；面向用户的导出报告使用 ISO-8601 日期。导出报告包含参考稿和用户背景，用户通过系统分享面板决定保存位置。
+
+Apple Speech 的成功和失败记录现在都会在 `configuration` 中保存 `apple_*` 诊断字段，包含输入格式、帧数、阶段和底层错误；字段含义与 USB 采集步骤见 [Apple Speech 调试](APPLE_SPEECH_DEBUG.md)。
