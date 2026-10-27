@@ -68,6 +68,12 @@ public struct Report: Codable, Sendable {
                       "", "原文 CER：\(format(metric.rawCER?.rate))；纠错 CER：\(format(metric.correctedCER?.rate))；ΔCER：\(format(metric.deltaCER))",
                       "", "原始文字：", "", run.rawText, "", "纠错状态：\(run.correction.status)"]
             if let corrected = run.correction.text { lines += ["", "纠错文字：", "", corrected] }
+            if let detection = run.languageDetection {
+                lines += ["", "语言检测：\(detection.model)；初始化 \(format(detection.preparationMS)) ms；检测 \(format(detection.detectionMS)) ms"]
+                for region in detection.regions {
+                    lines.append("- \(String(format: "%.2f–%.2f", region.startSeconds, region.endSeconds)) 秒：\(region.language ?? "und")（\(region.decision)；候选 \(region.observedLanguages.joined(separator: ","))）")
+                }
+            }
             if let error = run.error { lines += ["", "错误：\(error)"] }
             if let error = run.correction.error { lines += ["", "纠错错误：\(error)"] }
         }

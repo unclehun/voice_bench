@@ -22,11 +22,14 @@ VoiceBench 自己创建的持久文件全部存放在 iOS App 私有沙箱中。
 | 已保存录音及导入副本 | `Library/Application Support/VoiceBench/Audio` | 删除单条录音、清除全部或删除 App |
 | 转写、参考稿、背景、纠错和运行状态 | `Library/Application Support/VoiceBench/Records` | 与对应录音一起删除，或清除全部 / 删除 App |
 | 已导入 SenseVoice / VAD 模型及 receipt | `Library/Application Support/VoiceBench/Models` | 替换模型、清除全部或删除 App |
+| 已导入 Whisper Tiny / 独立 VAD 及 receipt | `Library/Application Support/VoiceBench/LanguageIDModels` | 替换 Whisper 模型、清除全部或删除 App |
+| Whisper 默认源目录（文件 App 可见） | `Documents/WhisperTiny_INT8` | 清除全部或删除 App |
 | 默认模型源目录（文件 App 可见） | `Documents/SenseVoiceSmall_INT8` | 清除全部或删除 App |
 | 模型导入中间目录 | `Library/Application Support/VoiceBench/Import-UUID` | 导入结束，不论成功与否；异常退出则下次启动清理 |
 | 录制中的音频 | `tmp/VoiceBench/录音-UUID.m4a` | 保存流程结束，不论成功与否；录制失败也清理 |
-| 两引擎格式转换音频 | `tmp/VoiceBench/UUID.caf` | 转写结束、失败或取消；转换失败自身也清理部分输出 |
-| 待分享 JSON / Markdown | `tmp/VoiceBench/Report-UUID` | 分享面板关闭后清理；生成失败立即清理 |
+| 语言检测格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/LanguageID-UUID.caf` | 检测完成、失败或取消；冷启动兜底清理 |
+| 两引擎格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/UUID.caf` | 转写结束、失败或取消；转换失败自身也清理部分输出 |
+| 待分享 JSON / Markdown | `tmp/VoiceBench/Recording-录音UUID/Report-UUID` | 分享面板关闭后清理；生成失败立即清理 |
 
 冷启动会清空 `tmp/VoiceBench`，处理进程被终止时未能执行的清理；也清理旧版直接写在 `tmp` 下的已知命名临时文件。成功读取全部 metadata 后，会删除没有对应记录的音频副本。若 metadata 读取出错，不冒险删除可能仍有用的录音。
 
@@ -36,7 +39,7 @@ VoiceBench 自己创建的持久文件全部存放在 iOS App 私有沙箱中。
 
 界面底部 **数据管理 → 清除全部本机数据与模型** 经过确认后：
 
-1. 删除 VoiceBench 私有录音、metadata、模型、`Documents/SenseVoiceSmall_INT8` 中的模型源文件和临时工作文件；随后仅重建空的固定目录。
+1. 删除 VoiceBench 私有录音、metadata、模型、`Documents/SenseVoiceSmall_INT8`、`Documents/WhisperTiny_INT8` 中的模型源文件和临时工作文件；随后仅重建空的固定目录。
 2. 清空界面中的记录、评测和分享引用，阻止旧的异步保存重新生成已删除记录。
 3. 调用 `AssetInventory.release(reservedLocale:)` 释放本 App 的苹果语音资源预留。
 
@@ -58,4 +61,13 @@ VoiceBench 自己创建的持久文件全部存放在 iOS App 私有沙箱中。
 
 `bash scripts/check_audio.sh Models/VoiceBenchModels` 使用独立临时测试目录，验证真实音频转换、取消无输出、备份排除属性、失败导入、报告生成失败和分享清理、模拟异常退出后恢复、全部清理与迟到保存、保留外部文件、清理后重新使用存储。已纳入 GitHub Actions（云端默认运行不需大模型的部分）。
 
-这些是文件生命周期测试，并不等于已经执行 iPhone 删除 / 重装或系统模型回收测试。真机可录音、识别、导出后清理，再确认列表为空、SenseVoice 需重新导入；随后用系统“删除 App”并重新安装，确认没有原先的录音与结果。
+这些是文件生命周期测试，并不等于已经执行 iPhone 删除 / 重装或系统模型回收测试。真机可录音、识别、导出后清理，再确认列表为空、SenseVoice 和 Whisper 需重新导入；随后用系统“删除 App”并重新安装，确认没有原先的录音与结果。
+
+
+## 录音卡片的删除边界
+
+每条录音有独立的 `tmp/VoiceBench/Recording-录音UUID` 工作目录，SenseVoice、Whisper 语言检测、Apple 的派生音频与待分享报告均归属于该目录。识别结束、失败或取消时清理本轮目录；删除卡片时再次删除整个目录、源音频内部副本及该录音的 metadata JSON。JSON 同时包含全部历史轮次、纠错、参考稿、背景和语言检测计划，因此删除覆盖整条录音的历史，而不只屏幕当前显示的结果。旧版本临时文件由升级后的首次冷启动统一清理。
+
+识别、纠错、导入、分享期间禁用删除，避免仍有任务向已删除目录写文件；播放中的删除会先停止播放并释放播放器。删除按录音 ID 执行，重试可安全处理已不存在的文件，并阻止迟到保存重建该录音。共享 SenseVoice / Whisper 模型和其他录音的工作目录保持不变。
+
+新增真实文件测试覆盖两条录音：删除一条后，其多引擎历史结果、纠错、评测资料、派生音频和待分享报告全部消失；另一条录音、其工作文件、共享模型与外部原件保留。也验证重复删除、迟到保存与分享回调不会重建文件。

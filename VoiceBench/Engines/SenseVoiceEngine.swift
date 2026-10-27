@@ -23,7 +23,7 @@ struct EngineOutput: Sendable {
 
 actor SenseVoiceEngine {
     func transcribe(source: URL, models: URL, language: String, lowMemory: Bool,
-                    cancellation: CancellationFlag,
+                    cancellation: CancellationFlag, temporaryFiles: AppTemporaryFiles = .live,
                     progress: @escaping @Sendable (Segment) async -> Void) async throws -> EngineOutput {
         let start = ProcessInfo.processInfo.systemUptime
         try cancellation.check()
@@ -56,8 +56,8 @@ actor SenseVoiceEngine {
         guard let vad = SherpaOnnxCreateVoiceActivityDetector(&vadConfig, 32) else { throw BenchError("Silero VAD 初始化失败。") }
         defer { SherpaOnnxDestroyVoiceActivityDetector(vad) }
         let ready = ProcessInfo.processInfo.systemUptime
-        let converted = try AppTemporaryFiles.live.file(extension: "caf")
-        defer { try? FileManager.default.removeItem(at: converted) }
+        let converted = try temporaryFiles.file(extension: "caf")
+        defer { try? temporaryFiles.remove(converted) }
         let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
         try AudioFiles.convert(source: source, target: converted, format: format, cancellation: cancellation)
         let input = try AVAudioFile(forReading: converted)
@@ -88,9 +88,11 @@ actor SenseVoiceEngine {
                 try cancellation.check()
                 guard let result = SherpaOnnxGetOfflineStreamResult(stream) else { throw BenchError("SenseVoice 未返回结果。") }
                 let text = result.pointee.text.map { String(cString: $0) } ?? ""
+                let detectedLanguage = LanguageRouting.normalized(result.pointee.lang.map { String(cString: $0) })
                 SherpaOnnxDestroyOfflineRecognizerResult(result)
                 let item = Segment(id: segments.count, startSeconds: Double(lo) / 16000, endSeconds: Double(hi) / 16000,
-                                   text: text, elapsedMS: (ProcessInfo.processInfo.systemUptime - segmentStart) * 1000)
+                                   text: text, elapsedMS: (ProcessInfo.processInfo.systemUptime - segmentStart) * 1000,
+                                   language: detectedLanguage)
                 segments.append(item); previousEnd = hi
                 await progress(item)
             }

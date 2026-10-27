@@ -11,8 +11,12 @@ struct ModelReceipt: Codable, Sendable {
 actor LocalStore {
     static let requiredModels = ["model.int8.onnx", "tokens.txt", "silero_vad.onnx"]
     static let defaultModelDirectoryName = "SenseVoiceSmall_INT8"
+    static let requiredLanguageModels = ["tiny-encoder.int8.onnx", "tiny-decoder.int8.onnx", "silero_vad.onnx"]
+    static let defaultLanguageModelDirectoryName = "WhisperTiny_INT8"
     let root: URL
     let models: URL
+    let languageModels: URL
+    let defaultLanguageModelDirectory: URL
     let audio: URL
     /// This is `Documents/SenseVoiceSmall_INT8`, visible in Files as
     /// `On My iPhone > 语音对比 (or VoiceBench) > SenseVoiceSmall_INT8`.
@@ -22,9 +26,11 @@ actor LocalStore {
     private var savedRevisions: [UUID: Int] = [:]
     private var deletedRecordings = Set<UUID>()
     private let modelManifestURL: URL?
-    init(baseURL: URL? = nil, modelManifestURL: URL? = nil, temporaryFiles: AppTemporaryFiles? = nil) throws {
+    private let languageModelManifestURL: URL?
+    init(baseURL: URL? = nil, modelManifestURL: URL? = nil, languageModelManifestURL: URL? = nil, temporaryFiles: AppTemporaryFiles? = nil) throws {
         let manager = FileManager.default
         self.modelManifestURL = modelManifestURL ?? Bundle.main.url(forResource: "model-manifest", withExtension: "json")
+        self.languageModelManifestURL = languageModelManifestURL ?? Bundle.main.url(forResource: "language-model-manifest", withExtension: "json")
         if let baseURL {
             root = baseURL
             defaultModelDirectory = baseURL.appendingPathComponent("Documents", isDirectory: true)
@@ -36,15 +42,19 @@ actor LocalStore {
                                                      appropriateFor: nil, create: true)
                 .appendingPathComponent(Self.defaultModelDirectoryName, isDirectory: true)
         }
+        defaultLanguageModelDirectory = defaultModelDirectory.deletingLastPathComponent()
+            .appendingPathComponent(Self.defaultLanguageModelDirectoryName, isDirectory: true)
+        languageModels = root.appendingPathComponent("LanguageIDModels", isDirectory: true)
         models = root.appendingPathComponent("Models", isDirectory: true)
         audio = root.appendingPathComponent("Audio", isDirectory: true)
         records = root.appendingPathComponent("Records", isDirectory: true)
         self.temporaryFiles = temporaryFiles ?? baseURL.map { AppTemporaryFiles(root: $0.appendingPathComponent("Temporary")) } ?? .live
         try Self.prepareDirectories(root: root)
-        try manager.createDirectory(at: defaultModelDirectory, withIntermediateDirectories: true)
-        var sourceURL = defaultModelDirectory
-        var sourceValues = URLResourceValues(); sourceValues.isExcludedFromBackup = true
-        try sourceURL.setResourceValues(sourceValues)
+        for var sourceURL in [defaultModelDirectory, defaultLanguageModelDirectory] {
+            try manager.createDirectory(at: sourceURL, withIntermediateDirectories: true)
+            var sourceValues = URLResourceValues(); sourceValues.isExcludedFromBackup = true
+            try sourceURL.setResourceValues(sourceValues)
+        }
         try self.temporaryFiles.reset()
         #if os(iOS)
         if baseURL == nil { try AppTemporaryFiles.removeLegacyFiles(in: manager.temporaryDirectory) }
@@ -62,7 +72,7 @@ actor LocalStore {
         var values = URLResourceValues(); values.isExcludedFromBackup = true
         // This demo deliberately does not put recordings/results/models into future device backups.
         try dataURL.setResourceValues(values)
-        for name in ["Models", "Audio", "Records"] {
+        for name in ["Models", "LanguageIDModels", "Audio", "Records"] {
             var url = root.appendingPathComponent(name, isDirectory: true)
             try manager.createDirectory(at: url, withIntermediateDirectories: true)
             try url.setResourceValues(values)
@@ -92,7 +102,8 @@ actor LocalStore {
         savedRevisions[recording.id] = recording.revision
     }
     func audioURL(_ recording: Recording) -> URL { audio.appendingPathComponent(recording.fileName) }
-    func importAudio(_ source: URL) throws -> Recording {
+    func workFiles(recordingID: UUID) -> AppTemporaryFiles { temporaryFiles.workspace(recordingID: recordingID) }
+    func importAudio(_ source: URL, displayName: String? = nil) throws -> Recording {
         let ext = source.pathExtension.lowercased()
         guard ["m4a", "wav", "caf"].contains(ext) else { throw BenchError("请选择 M4A 或 WAV 音频。") }
         let granted = source.startAccessingSecurityScopedResource()
@@ -104,7 +115,7 @@ actor LocalStore {
             let file = try AVAudioFile(forReading: destination)
             let duration = Double(file.length) / file.processingFormat.sampleRate
             guard duration.isFinite, duration > 0 else { throw BenchError("录音为空。") }
-            let item = Recording(name: source.deletingPathExtension().lastPathComponent, fileName: name,
+            let item = Recording(name: displayName ?? source.deletingPathExtension().lastPathComponent, fileName: name,
                                  sha256: try AudioFiles.hash(destination), duration: duration,
                                  sampleRate: file.fileFormat.sampleRate, channels: Int(file.fileFormat.channelCount))
             try save(item)
@@ -112,16 +123,22 @@ actor LocalStore {
         } catch { try? FileManager.default.removeItem(at: destination); throw error }
     }
     func delete(_ recording: Recording) throws {
+        // UI serializes deletion with inference. Remove only this recording's working files,
+        // including a report that was generated before the share sheet was dismissed.
+        try temporaryFiles.remove(workFiles(recordingID: recording.id).root)
         // Remove metadata only after the audio deletion succeeds (if the audio still exists).
         let url = audioURL(recording)
         if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
-        try FileManager.default.removeItem(at: records.appendingPathComponent(recording.id.uuidString + ".json"))
+        let metadata = records.appendingPathComponent(recording.id.uuidString + ".json")
+        if FileManager.default.fileExists(atPath: metadata.path) { try FileManager.default.removeItem(at: metadata) }
         deletedRecordings.insert(recording.id)
     }
-    func modelReceipt() -> ModelReceipt? {
+    func modelReceipt() -> ModelReceipt? { receipt(at: models, required: Self.requiredModels) }
+    func languageModelReceipt() -> ModelReceipt? { receipt(at: languageModels, required: Self.requiredLanguageModels) }
+    private func receipt(at models: URL, required: [String]) -> ModelReceipt? {
         guard let data = try? Data(contentsOf: models.appendingPathComponent("receipt.json")),
               let receipt = try? JSONDecoder().decode(ModelReceipt.self, from: data),
-              Self.requiredModels.allSatisfy({ FileManager.default.fileExists(atPath: models.appendingPathComponent($0).path) }) else { return nil }
+              required.allSatisfy({ FileManager.default.fileExists(atPath: models.appendingPathComponent($0).path) }) else { return nil }
         return receipt
     }
     /// Imports the fixed Files-visible folder once, only when no internal model is installed yet.
@@ -140,14 +157,35 @@ actor LocalStore {
         }
         return try importModels(defaultModelDirectory)
     }
-    private func hasCompleteModelSet(at directory: URL) -> Bool {
-        return Self.requiredModels.allSatisfy { name in
+    private func hasCompleteModelSet(at directory: URL, required: [String] = LocalStore.requiredModels) -> Bool {
+        return required.allSatisfy { name in
             let url = directory.appendingPathComponent(name)
             let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
             return values?.isRegularFile == true && (values?.fileSize ?? 0) > 0
         }
     }
+    func importDefaultLanguageModelsIfComplete() throws -> ModelReceipt? {
+        guard languageModelReceipt() == nil,
+              hasCompleteModelSet(at: defaultLanguageModelDirectory, required: Self.requiredLanguageModels) else { return nil }
+        return try importLanguageModels(defaultLanguageModelDirectory)
+    }
+    func importDefaultLanguageModels() throws -> ModelReceipt {
+        let missing = Self.requiredLanguageModels.filter {
+            !FileManager.default.fileExists(atPath: defaultLanguageModelDirectory.appendingPathComponent($0).path)
+        }
+        guard missing.isEmpty else { throw BenchError("默认目录 WhisperTiny_INT8 缺少：\(missing.joined(separator: "、"))") }
+        return try importLanguageModels(defaultLanguageModelDirectory)
+    }
+    func importLanguageModels(_ source: URL) throws -> ModelReceipt {
+        try importModelSet(source, required: Self.requiredLanguageModels, destination: languageModels,
+                           manifestURL: languageModelManifestURL, version: LanguageDetection.modelVersion)
+    }
     func importModels(_ source: URL) throws -> ModelReceipt {
+        try importModelSet(source, required: Self.requiredModels, destination: models,
+                           manifestURL: modelManifestURL, version: "sense-voice-int8-2024-07-17")
+    }
+    private func importModelSet(_ source: URL, required: [String], destination: URL,
+                                manifestURL: URL?, version: String) throws -> ModelReceipt {
         let access = source.startAccessingSecurityScopedResource()
         defer { if access { source.stopAccessingSecurityScopedResource() } }
         let manager = FileManager.default
@@ -155,7 +193,7 @@ actor LocalStore {
         try manager.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? manager.removeItem(at: staging) }
         var hashes: [String: String] = [:]
-        for name in Self.requiredModels {
+        for name in required {
             let input = source.appendingPathComponent(name)
             let values = try input.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
             guard values.isRegularFile == true, (values.fileSize ?? 0) > 0 else { throw BenchError("模型文件缺失或为空：\(name)") }
@@ -163,34 +201,39 @@ actor LocalStore {
             try manager.copyItem(at: input, to: output)
             hashes[name] = try AudioFiles.hash(output)
         }
-        guard let bundled = modelManifestURL else {
+        guard let bundled = manifestURL else {
             throw BenchError("App 缺少模型校验清单，请重新构建。")
         }
         let known = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: bundled))
-        guard Self.requiredModels.allSatisfy({ known[$0] == hashes[$0] }) else {
+        guard required.allSatisfy({ known[$0] == hashes[$0] }) else {
             throw BenchError("模型内容与此 Demo 指定版本不一致，请使用配套模型准备脚本。")
         }
         // If the preparation script supplied a manifest, reject changed/corrupt transfers.
         let manifest = source.appendingPathComponent("manifest.json")
         if manager.fileExists(atPath: manifest.path) {
             let expected = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: manifest))
-            guard Self.requiredModels.allSatisfy({ expected[$0] == hashes[$0] }) else { throw BenchError("模型 SHA-256 校验失败，请重新传输模型目录。") }
+            guard required.allSatisfy({ expected[$0] == hashes[$0] }) else { throw BenchError("模型 SHA-256 校验失败，请重新传输模型目录。") }
         }
         for name in ["LICENSE", "MODEL_LICENSE", "VAD_LICENSE"] where manager.fileExists(atPath: source.appendingPathComponent(name).path) {
             try manager.copyItem(at: source.appendingPathComponent(name), to: staging.appendingPathComponent(name))
         }
-        let receipt = ModelReceipt(version: "sense-voice-int8-2024-07-17", files: hashes, importedAt: Date())
+        let receipt = ModelReceipt(version: version, files: hashes, importedAt: Date())
         try JSONEncoder().encode(receipt).write(to: staging.appendingPathComponent("receipt.json"))
         // Atomic directory swap keeps the old model intact if validation/copy fails.
-        _ = try manager.replaceItemAt(models, withItemAt: staging)
-        var url = models; var values = URLResourceValues(); values.isExcludedFromBackup = true
+        _ = try manager.replaceItemAt(destination, withItemAt: staging)
+        var url = destination; var values = URLResourceValues(); values.isExcludedFromBackup = true
         try url.setResourceValues(values)
         return receipt
     }
     func export(_ recording: Recording, environment: [String: String]) throws -> [URL] {
-        let folder = try temporaryFiles.directory(prefix: "Report-")
+        let folder = try workFiles(recordingID: recording.id).directory(prefix: "Report-")
         var complete = false
-        defer { if !complete { try? temporaryFiles.remove(folder) } }
+        defer {
+            if !complete {
+                try? temporaryFiles.remove(folder)
+                try? temporaryFiles.removeWorkspaceIfEmpty(recordingID: recording.id)
+            }
+        }
         let report = Report(recording: recording, environment: environment)
         let json = folder.appendingPathComponent("VoiceBench.json"), md = folder.appendingPathComponent("VoiceBench.md")
         try report.json().write(to: json, options: .atomic)
@@ -202,6 +245,10 @@ actor LocalStore {
         for folder in Set(files.map { $0.deletingLastPathComponent() }) {
             guard folder.lastPathComponent.hasPrefix("Report-") else { throw BenchError("不是临时报告目录。") }
             try temporaryFiles.remove(folder)
+            let owner = folder.deletingLastPathComponent().lastPathComponent
+            if owner.hasPrefix("Recording-"), let id = UUID(uuidString: String(owner.dropFirst(10))) {
+                try temporaryFiles.removeWorkspaceIfEmpty(recordingID: id)
+            }
         }
     }
     func removeAllData() throws {
@@ -216,13 +263,16 @@ actor LocalStore {
         if manager.fileExists(atPath: root.path) { try manager.removeItem(at: root) }
         // The fixed Files-visible source is part of this app's container too. Empty it, then recreate
         // the named folder so the user knows exactly where to put a model next time.
-        if manager.fileExists(atPath: defaultModelDirectory.path) { try manager.removeItem(at: defaultModelDirectory) }
+        for url in [defaultModelDirectory, defaultLanguageModelDirectory] {
+            if manager.fileExists(atPath: url.path) { try manager.removeItem(at: url) }
+        }
         try temporaryFiles.reset()
         try Self.prepareDirectories(root: root)
-        try manager.createDirectory(at: defaultModelDirectory, withIntermediateDirectories: true)
-        var sourceURL = defaultModelDirectory
-        var sourceValues = URLResourceValues(); sourceValues.isExcludedFromBackup = true
-        try sourceURL.setResourceValues(sourceValues)
+        for var sourceURL in [defaultModelDirectory, defaultLanguageModelDirectory] {
+            try manager.createDirectory(at: sourceURL, withIntermediateDirectories: true)
+            var sourceValues = URLResourceValues(); sourceValues.isExcludedFromBackup = true
+            try sourceURL.setResourceValues(sourceValues)
+        }
         savedRevisions.removeAll()
     }
 }

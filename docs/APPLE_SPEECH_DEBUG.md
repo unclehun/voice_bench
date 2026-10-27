@@ -69,3 +69,18 @@ bash scripts/check_apple_speech.sh
 ```
 
 检查真实 AVAudioFile／AVAudioConverter 的 Int16 和 Float32 读写，包含 141,973 帧的重现边界、精确整块末尾、独立缓冲区、空文件、取消，以及错误链和报告序列化。该命令可在当前仅安装 Command Line Tools 的 Mac 上运行；它不包含 SpeechAnalyzer 或 iPhone 测试。GitHub Actions 已加入同一检查，之后仍会用真实 iOS SDK 编译 App。
+
+
+## 方案 B：自动语言检测的新增诊断
+
+新版 `apple_input_pipeline=pcm_language_regions_v2`，在原有逐块 EOF 处理之上按语言片段运行。先完成独立 Whisper Tiny 语言检测，并释放原生模型，再创建 Apple 会话。同一兼容格式的派生音频在本次运行内复用，所有会话结束或失败后统一清理。每个 PCM 区间使用从零开始的帧时间，保存文字时加回源音频偏移。
+
+语言检测 category 为 `LanguageID`、日志前缀 `VoiceBenchLanguageID`。窗口日志只含 run ID、起止秒数、语言代码、窗口数和耗时，不记录语音或转写文本。可同时过滤两类事件：
+
+```sh
+rg 'VoiceBench(LanguageID|AppleSpeech)' /tmp/voicebench-apple-speech.log
+```
+
+先核对 `languageDetection.spans[].windows` 与 `regions` 是否符合实际语言，再查 `apple_locale_routes`、`apple_range_first_frame` / `apple_range_end_frame` 和 `apple_read_frames`。新版本 `apple_read_frames` 是当前区间内读到的帧数；`apple_total_frames` 仍为整份派生文件长度。`apple_final_segments` 在会话内记录当前会话结果数，完成时记录合计。多区间时通用格式 / 帧字段保留最后处理区间，全部区间路由见计划和 `apple_locale_routes`。
+
+缺资源的错误不应反复重新导入模型：点击“准备苹果语言资源”，下载当前录音最后一次 Apple 检测计划涉及的语言后再运行。Whisper 初始化或检测错误会保存 `lid_error_stage/domain/code`、完成窗口数和已用时间。

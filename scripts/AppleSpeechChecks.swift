@@ -76,6 +76,40 @@ struct AppleSpeechChecks {
         }
         await convertedReader.close()
 
+        // Each language region starts its analyzer at zero, while saved results use source offsets.
+        let ranged = try PCMFileReader(url: converted, format: int16, cancellation: CancellationFlag(),
+                                       startSeconds: 1.25, endSeconds: 2.00001)
+        var regionFrames: Int64 = 0
+        while let chunk = try await ranged.next() {
+            guard chunk.startFrame == regionFrames else { throw BenchError("Region timestamps did not restart at zero") }
+            regionFrames += Int64(chunk.buffer.frameLength)
+        }
+        let rangeState = await ranged.snapshot()
+        guard ranged.startSeconds == 1.25, ranged.endSeconds == 2,
+              regionFrames == 12000, rangeState["apple_input_eof"] == "true" else {
+            throw BenchError("Ranged PCM read skipped, duplicated or misaligned the tail")
+        }
+        await ranged.close()
+        let adjacent = try PCMFileReader(url: converted, format: int16, cancellation: CancellationFlag(), startSeconds: 2.00001, endSeconds: 2.25)
+        var adjacentFrames: Int64 = 0
+        while let chunk = try await adjacent.next() { adjacentFrames += Int64(chunk.buffer.frameLength) }
+        guard adjacent.startSeconds == ranged.endSeconds, regionFrames + adjacentFrames == 16000 else {
+            throw BenchError("Adjacent language regions duplicated or dropped a boundary frame")
+        }
+        await adjacent.close()
+        let tail = try PCMFileReader(url: converted, format: int16, cancellation: CancellationFlag(), startSeconds: 8, endSeconds: 100)
+        var tailFrames: Int64 = 0
+        while let chunk = try await tail.next() { tailFrames += Int64(chunk.buffer.frameLength) }
+        guard tailFrames == Int64(read) - 128000 else { throw BenchError("End-clamped range lost the recording tail") }
+        await tail.close()
+        for bounds: (Double, Double) in [(-1, 1), (1, 1), (5, 4), (.infinity, 10), (1, .nan), (100, 101)] {
+            do {
+                _ = try PCMFileReader(url: converted, format: int16, cancellation: CancellationFlag(),
+                                      startSeconds: bounds.0, endSeconds: bounds.1)
+                throw BenchError("Accepted invalid PCM range")
+            } catch { if error.localizedDescription == "Accepted invalid PCM range" { throw error } }
+        }
+
         let empty = base.appendingPathComponent("empty.caf")
         try fixture(empty, frames: 0, format: int16)
         do {
@@ -116,7 +150,7 @@ struct AppleSpeechChecks {
               decoded.recording.runs[0].configuration["apple_input_eof"] == "true" else {
             throw BenchError("Exported report lost Apple Speech diagnostics")
         }
-        print("PASS: PCM Int16/Float32 tails, exact EOF, distinct buffers, real Int16 resampling, empty input, cancellation, underlying errors and diagnostic report export. SpeechAnalyzer/iOS not executed.")
+        print("PASS: PCM Int16/Float32 tails, exact EOF, language-region offsets and tails, invalid ranges, distinct buffers, real Int16 resampling, empty input, cancellation, underlying errors and diagnostic report export. SpeechAnalyzer/iOS not executed.")
     }
 }
 

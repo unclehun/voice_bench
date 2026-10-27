@@ -13,6 +13,9 @@ actor PCMFileReader {
     private var file: AVAudioFile?
     private let cancellation: CancellationFlag
     private let totalFrames: AVAudioFramePosition
+    private let firstFrame: AVAudioFramePosition
+    let startSeconds: Double
+    let endSeconds: Double
     private let sampleRate: Int32
     private var position: AVAudioFramePosition = 0
     private var chunks = 0
@@ -21,6 +24,7 @@ actor PCMFileReader {
     let metadata: [String: String]
 
     init(url: URL, format: AVAudioFormat, cancellation: CancellationFlag,
+         startSeconds: Double = 0, endSeconds: Double? = nil,
          inspect: @Sendable ([String: String]) -> Void = { _ in }) throws {
         let input = try AVAudioFile(forReading: url, commonFormat: format.commonFormat,
                                     interleaved: format.isInterleaved)
@@ -38,11 +42,25 @@ actor PCMFileReader {
               format.sampleRate <= Double(Int32.max), format.sampleRate.rounded() == format.sampleRate else {
             throw BenchError("派生音频采样率无法用于精确的帧时间戳。")
         }
+        let duration = Double(input.length) / format.sampleRate
+        guard startSeconds.isFinite, startSeconds >= 0, startSeconds < duration,
+              endSeconds == nil || (endSeconds!.isFinite && endSeconds! > startSeconds) else {
+            throw BenchError("派生音频片段的时间范围无效。")
+        }
+        // The same shared boundary must map to the same frame in adjacent language regions.
+        let first = AVAudioFramePosition((startSeconds * format.sampleRate).rounded())
+        let last = min(input.length, AVAudioFramePosition((min(endSeconds ?? duration, duration) * format.sampleRate).rounded()))
+        guard last > first else { throw BenchError("派生音频片段为空。") }
+        input.framePosition = first
         self.file = input
         self.cancellation = cancellation
-        self.totalFrames = input.length
+        self.totalFrames = last
+        self.firstFrame = first
+        self.position = first
+        self.startSeconds = Double(first) / format.sampleRate
+        self.endSeconds = Double(last) / format.sampleRate
         self.sampleRate = Int32(format.sampleRate)
-        self.metadata = metadata
+        self.metadata = metadata.merging(["apple_range_first_frame": String(first), "apple_range_end_frame": String(last)]) { _, new in new }
     }
 
     func next() throws -> PCMFileChunk? {
@@ -67,11 +85,11 @@ actor PCMFileReader {
         }
         chunks += 1
         lastChunkFrames = buffer.frameLength
-        return PCMFileChunk(buffer: buffer, startFrame: start, sampleRate: sampleRate)
+        return PCMFileChunk(buffer: buffer, startFrame: start - firstFrame, sampleRate: sampleRate)
     }
 
     func snapshot() -> [String: String] {
-        ["apple_read_frames": String(position), "apple_input_chunks": String(chunks),
+        ["apple_read_frames": String(position - firstFrame), "apple_input_chunks": String(chunks),
          "apple_last_chunk_frames": String(lastChunkFrames), "apple_input_eof": String(reachedEOF)]
     }
 

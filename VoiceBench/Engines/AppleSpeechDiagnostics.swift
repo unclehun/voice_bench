@@ -6,7 +6,7 @@ struct AppleSpeechFailure: LocalizedError, Sendable {
     let summary: String
     let configuration: [String: String]
     var errorDescription: String? {
-        let titles = ["check_support": "检查设备支持", "check_assets": "检查语言资源", "select_format": "选择音频格式",
+        let titles = ["check_support": "检查设备支持", "check_assets": "检查语言资源", "check_language_plan": "校验语言检测结果", "select_format": "选择音频格式",
                       "prepare_analyzer": "准备识别器", "inspect_source": "读取源录音", "convert_audio": "转换音频",
                       "open_pcm": "打开派生音频", "read_audio": "逐块读取音频", "analyze_audio": "分析音频",
                       "receive_results": "接收识别结果", "finalize_analysis": "结束分析", "collect_results": "收集最终结果",

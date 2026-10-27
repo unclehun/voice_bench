@@ -6,6 +6,17 @@ struct AppTemporaryFiles: Sendable {
     static let live = AppTemporaryFiles(root: FileManager.default.temporaryDirectory.appendingPathComponent("VoiceBench", isDirectory: true))
     let root: URL
 
+    /// All derived audio and report staging for one recording have the same deletion boundary.
+    func workspace(recordingID: UUID) -> AppTemporaryFiles {
+        AppTemporaryFiles(root: root.appendingPathComponent("Recording-" + recordingID.uuidString, isDirectory: true))
+    }
+
+    func removeWorkspaceIfEmpty(recordingID: UUID) throws {
+        let folder = workspace(recordingID: recordingID).root
+        if FileManager.default.fileExists(atPath: folder.path),
+           try FileManager.default.contentsOfDirectory(atPath: folder.path).isEmpty { try remove(folder) }
+    }
+
     func file(extension ext: String, prefix: String = "") throws -> URL {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return root.appendingPathComponent(prefix + UUID().uuidString).appendingPathExtension(ext)

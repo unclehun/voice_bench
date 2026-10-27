@@ -74,3 +74,43 @@ plutil -lint VoiceBench.xcodeproj/project.pbxproj VoiceBench/Info.plist
 - `bash scripts/check_apple_speech.sh`：实际执行并通过核心 11,930 项检查，以及 Int16 / Float32、交错 / 非交错、1 / 4096 / 8192 / 141973 帧等 16 组 PCM 文件读取、真实 48 kHz 双声道到 16 kHz 单声道 Int16 转换、独立缓冲区、空输入拒绝、取消、底层错误与报告导出检查。
 - 全部 App Swift 源码的 frontend parse、工程生成、pbxproj / plist 检查和 Git 文件检查通过。GitHub Actions 已增加相同 PCM 和诊断检查。
 - 本机仍为 Swift 5.8.1 / Command Line Tools，没有 iOS 26 SDK；上述结果不包含新版 Speech API 的 iOS SDK 编译、SpeechAnalyzer 执行或修改后的真机识别结果。详细复测方法见 [Apple Speech 调试](APPLE_SPEECH_DEBUG.md)。
+
+
+## 2026-10-27：方案 B / Whisper Tiny 自动语言检测
+
+用户已反馈上一版 SenseVoice 和 Apple Speech 均能在 iPhone 上识别。本节仅记录新的自动语言检测修改，不把上一版真机成功当作本次集成验证。
+
+- 已将多语种 Whisper Tiny INT8 下载到 `Models/WhisperTiny_INT8`，encoder、decoder、独立 Silero VAD 总计 **103,437,027 字节**。按固定 Hugging Face revision 和内置 manifest 验证三份 SHA-256，并再次运行准备脚本验证已有文件。MIT 许可、VAD 许可与来源记录随目录保留。
+- 新模型未进入 Git / IPA；工程新增的资源仅为小型校验清单和许可。最低系统仍为 iOS 26.0。
+- 11,949 项核心断言通过，新增后段语言切换、混说主要语言、并列选择、静音 / 未知、短输入、相邻语音保护区、合并时长上限、计划编码和旧版本记录兼容检查。均为合成标签逻辑测试，不是准确率结论。
+- `bash scripts/check_audio.sh Models/VoiceBenchModels Models/WhisperTiny_INT8` 通过真实文件测试：两套完整模型导入、Whisper 默认自动发现、重复启动复用、手工替换、损坏文件拒绝、模型集隔离、备份排除、清除全部和外部原件保留。云端不依赖大模型的合成 manifest 测试也已纳入该脚本。
+- `bash scripts/check_apple_speech.sh` 通过，新增区间起止、从零开始的 analyzer 时间、源录音偏移、非整数帧边界一致舍入、尾部夹取和非法区间拒绝；原有 EOF、格式、取消与诊断序列化继续通过。
+- 使用真实 sherpa-onnx 1.13.8 C 头文件，对 WhisperLanguageDetector / SenseVoiceEngine 做 targeted concurrency 类型检查通过。现有 iOS 静态库导出了语言检测所需符号，不升级原生依赖。
+- 已重新生成 Xcode 工程；全部 App Swift 语法、pbxproj / plist、脚本 / JSON / Git 文件检查通过。
+- 本机仍没有 iOS SDK；**本次更新尚未完成 iOS 编译、Whisper 原生推理或新流程的 iPhone 运行测试**。先云端构建，再用纯中文、纯英文、句间切换、句内混说、短语音、静音各试一次，核对检测明细、实际 Apple locale、原文、耗时与资源缺失提示；下载资源后断网复测。
+
+可重复验证：
+
+```sh
+python3 scripts/prepare_language_models.py
+bash scripts/check_audio.sh Models/VoiceBenchModels Models/WhisperTiny_INT8
+bash scripts/check_apple_speech.sh
+swiftc -typecheck -strict-concurrency=targeted -module-cache-path .build-local/module-cache \
+  -I .build-local -F Vendor/sherpa-onnx.xcframework/ios-arm64 \
+  VoiceBench/Audio/AudioFiles.swift VoiceBench/Storage/AppTemporaryFiles.swift \
+  VoiceBench/Engines/SenseVoiceEngine.swift VoiceBench/Engines/WhisperLanguageDetector.swift
+```
+
+
+## 2026-10-27：按草图重构录音卡片界面（0.2.0）
+
+- 主界面改为录音卡片列表；左上 + 打开录音浮层，圆形开始 / 方形停止互斥，停止后自动保存关闭；设置为独立可返回页面。新录音使用简短序号名称，导入音频保留原文件显示名。
+- 每次点击卡片识别，会先保存同一 `batchID` 的两条排队记录，再依次运行两套引擎。卡片显示最新一轮；旧版数据无 batch ID 时保持可读。取消也关闭尚未运行的排队项。
+- 卡片纠错依次处理本轮成功且非空的识别结果。完成后才显示展开 / 收起三角；历史结果、评测、导出、纠错明细及单引擎调试保留在详情页。
+- 全部卡片操作使用明确的录音 ID；播放状态可切换，播放完成复位，删除先释放播放器。忙碌、录音或分享期间禁用删除，避免任务与清理交错。
+- 三条音频处理路径与临时报告均使用每条录音独立工作目录。删除同时移除音频内部副本、含全部历史结果的 metadata 与整个工作目录；共享模型和其他录音不受影响。
+- `bash scripts/check_audio.sh Models/VoiceBenchModels Models/WhisperTiny_INT8`：通过真实音频转换、简短显示名保存、两录音删除隔离、全部历史识别 / 纠错删除、临时 CAF / 报告清理、重复删除、迟到保存与分享回调、模型集导入及备份属性检查。
+- `bash scripts/check_apple_speech.sh`：通过。核心断言增加到 **11,958** 项，新增本轮结果选择、排队时不混入旧纠错、失败结果不可纠错、进行中的纠错不冒充完成、批次持久化和旧数据兼容检查。
+- 全部 App Swift frontend parse、真实 sherpa C API / 存储类型检查、XcodeGen 工程生成和 plist 校验通过。上述结果不包含新 SwiftUI 界面的 iOS SDK 类型检查、实际布局截图或交互自动化；本机没有完整 Xcode / iPhoneOS SDK。
+
+真机验收：新建两条录音并分别识别 / 纠错；确认两种录音按钮不同时出现、停止后新增卡片；进入设置后返回；两套结果逐个更新；纠错三角出现并能反复收放；新一轮识别不展示旧纠错；播放完成图标恢复；删除一条后重启 App，另一条音频 / 结果 / 模型仍能使用。再验证取消、后台中断、导入、历史详情和导出。

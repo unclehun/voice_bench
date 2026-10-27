@@ -17,9 +17,10 @@ public struct Segment: Codable, Identifiable, Sendable {
     public var endSeconds: Double
     public var text: String
     public var elapsedMS: Double?
-    public init(id: Int, startSeconds: Double, endSeconds: Double, text: String, elapsedMS: Double? = nil) {
+    public var language: String?
+    public init(id: Int, startSeconds: Double, endSeconds: Double, text: String, elapsedMS: Double? = nil, language: String? = nil) {
         self.id = id; self.startSeconds = startSeconds; self.endSeconds = endSeconds
-        self.text = text; self.elapsedMS = elapsedMS
+        self.text = text; self.elapsedMS = elapsedMS; self.language = language
     }
 }
 
@@ -49,6 +50,7 @@ public struct Correction: Codable, Sendable {
 
 public struct Run: Codable, Identifiable, Sendable {
     public var id = UUID()
+    public var batchID: UUID?
     public var engine: EngineID
     public var startedAt = Date()
     public var status: RunStatus = .running
@@ -59,6 +61,7 @@ public struct Run: Codable, Identifiable, Sendable {
     public var error: String?
     public var modelVersion: String
     public var configuration: [String: String] = [:]
+    public var languageDetection: LanguageDetection?
     public var correction = Correction()
     public init(engine: EngineID) {
         self.engine = engine
