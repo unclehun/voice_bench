@@ -478,9 +478,15 @@ final class BenchViewModel: ObservableObject {
                 await refresh()
                 message = "本机数据已清除，苹果语音资源预留已释放。共享系统模型由 iOS 管理。"
             } catch {
-                // Reflect any deletion that succeeded before a filesystem error.
-                recordings = (try? await store.load()) ?? []
-                selectedID = recordings.first?.id
+                // Do not turn a failed reload into an apparently successful empty recording list.
+                if let remaining = try? await store.load() {
+                    recordings = remaining
+                    selectedID = recordings.first?.id
+                }
+                modelReceipt = await store.modelReceipt()
+                languageModelReceipt = await store.languageModelReceipt()
+                if modelReceipt == nil { modelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
+                if languageModelReceipt == nil { languageModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 self.error = "清理未全部完成：\(error.localizedDescription)。可重试，或在系统设置中选择“删除 App”。"
             }
         }

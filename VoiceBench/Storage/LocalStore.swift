@@ -27,21 +27,27 @@ actor LocalStore {
     private var deletedRecordings = Set<UUID>()
     private let modelManifestURL: URL?
     private let languageModelManifestURL: URL?
-    init(baseURL: URL? = nil, modelManifestURL: URL? = nil, languageModelManifestURL: URL? = nil, temporaryFiles: AppTemporaryFiles? = nil) throws {
+    private let legacyTemporaryDirectory: URL?
+    init(baseURL: URL? = nil, modelManifestURL: URL? = nil, languageModelManifestURL: URL? = nil, temporaryFiles: AppTemporaryFiles? = nil,
+         documentsURL: URL? = nil, legacyTemporaryDirectory: URL? = nil) throws {
         let manager = FileManager.default
         self.modelManifestURL = modelManifestURL ?? Bundle.main.url(forResource: "model-manifest", withExtension: "json")
         self.languageModelManifestURL = languageModelManifestURL ?? Bundle.main.url(forResource: "language-model-manifest", withExtension: "json")
-        if let baseURL {
-            root = baseURL
-            defaultModelDirectory = baseURL.appendingPathComponent("Documents", isDirectory: true)
-                .appendingPathComponent(Self.defaultModelDirectoryName, isDirectory: true)
-        } else {
+        #if os(iOS)
+        self.legacyTemporaryDirectory = legacyTemporaryDirectory ?? (baseURL == nil ? manager.temporaryDirectory : nil)
+        #else
+        self.legacyTemporaryDirectory = legacyTemporaryDirectory
+        #endif
+        if let baseURL { root = baseURL }
+        else {
             root = try manager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
                 .appendingPathComponent("VoiceBench", isDirectory: true)
-            defaultModelDirectory = try manager.url(for: .documentDirectory, in: .userDomainMask,
-                                                     appropriateFor: nil, create: true)
-                .appendingPathComponent(Self.defaultModelDirectoryName, isDirectory: true)
         }
+        let documents: URL
+        if let documentsURL { documents = documentsURL }
+        else if let baseURL { documents = baseURL.appendingPathComponent("Documents", isDirectory: true) }
+        else { documents = try manager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) }
+        defaultModelDirectory = documents.appendingPathComponent(Self.defaultModelDirectoryName, isDirectory: true)
         defaultLanguageModelDirectory = defaultModelDirectory.deletingLastPathComponent()
             .appendingPathComponent(Self.defaultLanguageModelDirectoryName, isDirectory: true)
         languageModels = root.appendingPathComponent("LanguageIDModels", isDirectory: true)
@@ -56,9 +62,7 @@ actor LocalStore {
             try sourceURL.setResourceValues(sourceValues)
         }
         try self.temporaryFiles.reset()
-        #if os(iOS)
-        if baseURL == nil { try AppTemporaryFiles.removeLegacyFiles(in: manager.temporaryDirectory) }
-        #endif
+        if let legacy = self.legacyTemporaryDirectory { try AppTemporaryFiles.removeLegacyFiles(in: legacy) }
         // A process kill bypasses defer. Remove abandoned model imports on the next launch.
         for url in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) {
             let name = url.lastPathComponent
@@ -128,9 +132,9 @@ actor LocalStore {
         try temporaryFiles.remove(workFiles(recordingID: recording.id).root)
         // Remove metadata only after the audio deletion succeeds (if the audio still exists).
         let url = audioURL(recording)
-        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+        try AppFileSystem.removeIfPresent(url)
         let metadata = records.appendingPathComponent(recording.id.uuidString + ".json")
-        if FileManager.default.fileExists(atPath: metadata.path) { try FileManager.default.removeItem(at: metadata) }
+        try AppFileSystem.removeIfPresent(metadata)
         deletedRecordings.insert(recording.id)
     }
     func modelReceipt() -> ModelReceipt? { receipt(at: models, required: Self.requiredModels) }
@@ -252,27 +256,55 @@ actor LocalStore {
         }
     }
     func removeAllData() throws {
-        // Queued editor saves must not resurrect records after the user clears everything.
+        // Remember every known ID before removing metadata, so delayed saves cannot resurrect it.
         deletedRecordings.formUnion(savedRevisions.keys)
         let manager = FileManager.default
-        if manager.fileExists(atPath: records.path) {
-            for url in try manager.contentsOfDirectory(at: records, includingPropertiesForKeys: nil) {
+        if let urls = try? manager.contentsOfDirectory(at: records, includingPropertiesForKeys: nil) {
+            for url in urls {
                 if let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent) { deletedRecordings.insert(id) }
             }
         }
-        if manager.fileExists(atPath: root.path) { try manager.removeItem(at: root) }
-        // The fixed Files-visible source is part of this app's container too. Empty it, then recreate
-        // the named folder so the user knows exactly where to put a model next time.
-        for url in [defaultModelDirectory, defaultLanguageModelDirectory] {
-            if manager.fileExists(atPath: url.path) { try manager.removeItem(at: url) }
+        var failures: [String] = []
+        func attempt(_ label: String, _ operation: () throws -> Void) {
+            do { try operation() }
+            catch { failures.append("\(label)：\(error.localizedDescription)") }
         }
-        try temporaryFiles.reset()
-        try Self.prepareDirectories(root: root)
-        for var sourceURL in [defaultModelDirectory, defaultLanguageModelDirectory] {
-            try manager.createDirectory(at: sourceURL, withIntermediateDirectories: true)
-            var sourceValues = URLResourceValues(); sourceValues.isExcludedFromBackup = true
-            try sourceURL.setResourceValues(sourceValues)
+        // These targets are independent on iOS. Attempt all of them even if one deletion fails.
+        for (label, url) in [("录音、结果及内部模型", root), ("SenseVoice 默认目录", defaultModelDirectory),
+                             ("Whisper 默认目录", defaultLanguageModelDirectory)] {
+            attempt(label) { try AppFileSystem.removeIfPresent(url) }
         }
+        attempt("临时工作文件") { try temporaryFiles.reset() }
+        if let legacy = legacyTemporaryDirectory {
+            attempt("旧版临时文件") { try AppTemporaryFiles.removeLegacyFiles(in: legacy) }
+        }
+        attempt("重建内部空目录") { try Self.prepareDirectories(root: root) }
+        for var source in [defaultModelDirectory, defaultLanguageModelDirectory] {
+            attempt("重建 \(source.lastPathComponent) 空目录") {
+                try manager.createDirectory(at: source, withIntermediateDirectories: true)
+                var values = URLResourceValues(); values.isExcludedFromBackup = true
+                try source.setResourceValues(values)
+            }
+        }
+        // Success means every owned directory is empty, including abandoned imports/unknown leftovers.
+        attempt("核对清理结果") {
+            let expected = Set(["Audio", "Records", "Models", "LanguageIDModels"])
+            var allowed = expected
+            // Alternate storage roots may place Documents/Temporary inside this directory.
+            for url in [defaultModelDirectory.deletingLastPathComponent(), temporaryFiles.root] {
+                if url.deletingLastPathComponent().standardizedFileURL == root.standardizedFileURL { allowed.insert(url.lastPathComponent) }
+            }
+            let remaining = Set(try manager.contentsOfDirectory(atPath: root.path))
+            guard expected.isSubset(of: remaining), remaining.isSubset(of: allowed) else {
+                throw BenchError("内部目录仍有残留或未能正确重建。")
+            }
+            for url in [audio, records, models, languageModels, defaultModelDirectory, defaultLanguageModelDirectory, temporaryFiles.root] {
+                guard try manager.contentsOfDirectory(atPath: url.path).isEmpty else {
+                    throw BenchError("\(url.lastPathComponent) 仍有未删除文件。")
+                }
+            }
+        }
+        guard failures.isEmpty else { throw BenchError("以下清理步骤未完成，请重试：\n" + failures.joined(separator: "\n")) }
         savedRevisions.removeAll()
     }
 }

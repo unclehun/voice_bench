@@ -25,6 +25,7 @@ struct AudioChecks {
             try file.write(from: buffer)
         }
         let output = base.appendingPathComponent("converted.caf")
+        try await CleanupChecks.run(base: base.appendingPathComponent("CleanupRegression"), source: source)
         fputs("Audio check: convert\n", stderr)
         let target = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
         try AudioFiles.convert(source: source, target: output, format: target, cancellation: CancellationFlag())
