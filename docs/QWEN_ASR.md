@@ -61,3 +61,6 @@ bash scripts/check_apple_speech.sh
 本机没有 Xcode / iPhoneOS SDK。Mac 原生推理烟雾测试因旧 SDK 缺少 ONNX Runtime 所需的 `MLComputePlan`、`MLOptimizationHints` 链接符号而未执行成功，不代表已完成真机识别。`scripts/QwenSmoke.swift` 保留为具备匹配 macOS 原生库与 SDK 时的可选验证入口。没有为此安装 Xcode 或修改原有引擎。
 
 新 IPA 真机先验证默认载入、重启复用和仅 Qwen 转写；再测试中文、英文、句间切换、句内混说、静音、超过 20 秒连续语音、取消和后台中断。确认各段完整、不重复，导出报告核对耗时和错误。删除一条录音后重启，确认其他录音和三套模型可用；清除全部后确认列表为空、三套外部模型需重新导入。手机准确率、速度与峰值内存仍待测。
+
+
+0.4.0 另增独立 Fun-ASR-MLT-Nano 引擎。Qwen 的权重、导入扩展与推理实现保持不变，卡片会在其后运行已载入的 Fun-ASR；配置及分段差异见 [Fun-ASR 接入说明](FUNASR_MLT.md)。

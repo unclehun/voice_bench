@@ -1,13 +1,13 @@
 # VoiceBench · 语音对比
 
-简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber** 与 **Qwen3-ASR 0.6B INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.3.0**。
+简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8** 与 **Fun-ASR-MLT-Nano INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.4.1**。
 
 当前交付包含 Swift 源码、生成的 Xcode 工程、锁定依赖、模型准备脚本、手动触发的 GitHub Actions 工作流和本地逻辑校验。云端仓库为 [unclehun/voice_bench](https://github.com/unclehun/voice_bench)，操作步骤见 [GitHub 云端编译](docs/GITHUB_ACTIONS.md)。**本地验证尚不包含 iOS SDK 编译或 iPhone 测试，实际云端构建状态以 Actions 为准。**验证边界见 [验证记录](docs/VALIDATION.md)。
 
 ## 功能
 
 - 录音、M4A / WAV 导入、播放、录音选择和删除。
-- 原有两套引擎保持原流程；载入 Qwen 后，每轮依次运行三套引擎，详情页可单独测试任一引擎。
+- 原有两套引擎保持原流程；载入 Qwen / Fun-ASR 后，每轮加入已配置的引擎，最多依次运行四套，详情页可单独测试任一引擎。
 - 同一源文件的 SHA-256、原始文本、分段时间、初始化时间、转写时间及 RTF。
 - 模型文件校验、Whisper Tiny 自动语言检测、苹果中英文资源准备、可用性检查、错误和取消状态。
 - 原文及完成片段落盘，重启后把未完成任务标记为中断。
@@ -18,10 +18,10 @@
 主界面按录音显示卡片，左上角 **+** 打开录音浮层，右上角 **设置** 进入模型配置与数据管理。无需登录 App 账号或配置服务端。
 
 - 录音浮层显示计时器：红色圆形开始录音，绿色方形停止并保存，两种按钮互斥。停止后自动返回列表，新录音按“录音 1、录音 2…”命名；浮层也保留音频文件导入入口。
-- 卡片点击 **识别**，依次运行 SenseVoice、Apple，再运行已载入的 Qwen，展示本轮结果；未载入 Qwen 时继续原有双引擎流程。每轮结果归为一个 batch，新一轮排队时不会拼上旧一轮的文字或纠错；历史记录在 **详情** 中保留。
+- 卡片点击 **识别**，依次运行 SenseVoice、Apple，再运行已载入的 Qwen、Fun-ASR，展示本轮结果；未载入这两套时继续原有双引擎流程。每轮结果归为一个 batch，新一轮排队时不会拼上旧一轮的文字或纠错；历史记录在 **详情** 中保留。
 - 点击卡片 **纠错**，依次处理本轮已成功识别的非空文本。完成后出现绿色三角图标，点击展开 / 收起各套纠错结果；失败会显示错误，没有结果时不显示三角。
 - 卡片可播放 / 停止音频、删除整条录音。删除会清理该录音的音频、全部历史识别与纠错、参考稿、背景和内部临时工作文件，保留其他录音与共享模型。
-- **设置** 集中管理 SenseVoice / Whisper / Qwen 默认目录及手工导入、Apple 语言资源、纠错可用性和全部数据清理，可通过系统返回按钮回主界面。
+- **设置** 集中管理 SenseVoice / Whisper / Qwen / Fun-ASR 默认目录及手工导入、Apple 语言资源、纠错可用性和全部数据清理，可通过系统返回按钮回主界面。
 - **详情** 保留参考稿、纠错背景、CER、JSON / Markdown 导出、历史运行明细和单引擎调试入口。
 
 ## 运行条件
@@ -40,6 +40,7 @@ Apple Speech 重复报 `Foundation._GenericObjCError Code=0` 时，新版采用�
 - `project.yml`：工程配置的来源，变更后重新生成。
 - `Vendor/`：已下载、验证 SHA-256 的 iOS 静态 XCFramework（不提交 Git）。
 - `.tools/xcodegen/`：项目内的 XcodeGen 2.44.1，不是 Xcode。
+- `Models/FunASR_MLT_Nano_INT8/`：完整 MLT 版 ONNX INT8、tokenizer、VAD、许可证及 manifest，约 1.01 GB（不提交 Git，也不进入 IPA）。
 - `Models/Qwen3ASR_0_6B_INT8/`：完整 Qwen、tokenizer、VAD、许可证和 manifest，约 988 MB（不提交 Git，也不进入 IPA）。
 - `Models/WhisperTiny_INT8/`：Whisper Tiny 多语种 INT8 语言检测模型、独立 VAD、许可证及 manifest，约 103 MB（不提交 Git）。
 - `Models/VoiceBenchModels/`：准备好的手机模型导入目录，含权重、tokens、VAD、许可证和 manifest（不提交 Git）。
@@ -185,6 +186,19 @@ python3 scripts/prepare_qwen_models.py --verify-only
 
 Qwen 独立直接转写多语言，不使用 Whisper 的语言标签或 Apple 的语言资源。载入后卡片“识别”自动加入第三套；详情 → 调试运行 → “仅 Qwen3-ASR”可独立测试。原有 SenseVoice、Whisper、Apple 和纠错引擎实现未修改。
 
+### Fun-ASR-MLT-Nano INT8（第四套识别引擎）
+
+模型已下载到 `Models/FunASR_MLT_Nano_INT8`，十份必需文件共 **1,010,411,868 字节**。准备与复核：
+
+```sh
+python3 scripts/prepare_funasr_models.py
+python3 scripts/prepare_funasr_models.py --verify-only
+```
+
+将完整目录放在 **文件 → 在我的 iPhone → 语音对比 → FunASR_MLT_Nano_INT8**，保留 tokenizer 子目录。与 Qwen 一样，支持启动 / 检查状态自动载入、从默认目录重新载入，以及系统文件选择器手动选目录。载入后卡片识别增加第四套；详情 → 调试运行 → “仅 Fun-ASR-MLT-Nano”可独立测试。
+
+此处是多语言 MLT 版本，使用社区 ONNX INT8 导出，固定 revision 和十份 SHA-256。0.4.1 针对 512-token KV 增加输入 / 输出联合预算：优先保留最长约 20 秒的自然语音段，接近容量时丢弃本次文字、在附近低能量位置细分后重跑，最终采用的结果保留至少 16 token 余量。另修复 Fun-ASR 音频读取可能少读采样的问题。模型文件不变，无需重新传输。详细边界及真机验收见 [Fun-ASR 接入说明](docs/FUNASR_MLT.md)。
+
 ## 评测方法
 
 先不做纠错，分别测试安静普通话、专名 / 数字 / 否定词、中英混说、噪声和长录音。点击卡片“识别”后依次运行各套引擎，并分别保存结果。
@@ -201,10 +215,10 @@ Qwen 独立直接转写多语言，不使用 Whisper 的语言标签或 Apple �
 
 删除与备份行为见 [数据清理说明](docs/DATA_LIFECYCLE.md)。在 iPhone 设置中须选择 **“删除 App”**；**“卸载 App”会保留数据**。App 私有录音、结果和模型随删除移除；导出副本、导入原件及苹果共享系统模型不属于 App 私有数据。
 
-- **本次自动语言检测更新尚未通过 iOS SDK 编译与真机验证。**本地语法和跨平台类型检查不能替代它。
+- **本次 Fun-ASR 更新尚未通过 iOS SDK 编译与真机验证。**本地语法和跨平台类型检查不能替代它。
 - 前台任务为主。后台或系统音频中断会结束任务，保留已完成片段；重新运行会创建新记录，没有断点续跑。
 - 原生 SenseVoice / Whisper 取消在原生推理调用之间生效，当前调用期间可能要等待。
-- 识别固定使用原默认配置：2 线程 / 25 秒分段上限，SenseVoice 自动检测语言。VAD 使用模型自身的最长时长切分，没有另实现“在附近低能量点搜索”的算法。
+- SenseVoice 使用原默认配置：2 线程 / 25 秒分段上限、自动检测语言。Fun-ASR 使用独立的上下文预算与低能量重分段策略，见接入说明。
 - 为避免边界重复，后段保护区裁剪到前段结束，记录真实采用范围；尚无精确逐字时间戳或语义去重。
 - LLM 纠错按 400 字分块，附相邻上下文；没有实现上下文超限后的自适应缩块重试。失败块保留原文并记录错误，可单独重试整次纠错。
 - 内存 / CPU / 整机耗电未测，不用 App 自身内存推断苹果系统模型资源占用。

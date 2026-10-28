@@ -1,5 +1,27 @@
 # 验证记录
 
+## 2026-10-28：Fun-ASR 512 上下文审计与修复（0.4.1）
+
+- 确认原生 sherpa-onnx 1.13.8 在 KV 容量耗尽时也会停止生成，结果接口未返回停止原因；原来只拒绝生成数达到 256 的逻辑不能识别这类截断。用同版本 C++ tokenizer 核对现有提示为音频前 18 / 后 5，共 23 token。读取固定模型元数据及原生特征实现，按音频长度计算保守 prefill 上界，联合输出数检查并预留 16 token；不使用原文本骨干的 40960 容量。
+- 优先 20 秒自然语音段，合并相邻短尾；仅超预算时按低能量边界递归细分，拒绝保存父段可疑文字，重试深度及最小子段长度均有界。实际采用区间不丢帧、不重复。max_new_tokens 改为 512，不增加导出容量。模型及默认目录不变，已有手机模型无需重传。
+- **34,467 项核心断言通过**：包含采样长度穷举预算、原生 KV 提前停止的反例、超过原 256 但仍安全的输出、低能量边界、短尾合并及停止条件。Fun-ASR 专用 AVAudioFile 循环读取通过真实 CAF 逐采样校验、seek / 尾块 / 取消 / 非法区间检查；修复单次读取可能少于请求且尚未 EOF 的情况。原有完整四套模型导入、删除及清除全部检查通过。
+- 在本机实际运行共享的 FunASRSpeechEngine，使用 sherpa-onnx **1.13.8** 与 ONNX Runtime **1.28.2** 的 macOS 库。短中文、连续绕口令及快速语音通过。21.5 秒高密度拼接压力样例触发 **3 次尝试 / 1 次细分**：父段生成 131 token，超过安全输出预算 112，未发布；两子段生成 79 / 67，接受结果最小保守余量 230。验证子区间完整覆盖父段、预取消及临时音频清理。拼接样例仅测试容量路径，没有参考稿，不能据此声称识别准确率或手机性能。
+- 本机报告在 `.build-local/funasr-budget-{short,fast,dense,stress}.json`，最终重编后复验为 `funasr-budget-short-final.json` / `funasr-budget-stress-final.json`，均不进入 Git / 源码包。可选复现脚本 `scripts/check_funasr_native.sh`；要求外部提供同版本 macOS 库，不改变 iOS 原生依赖。
+- Apple PCM / 语言区间 / 取消 / 诊断回归、全部 App Swift 语法、真实 C API + targeted concurrency 编译、XcodeGen 工程生成、plist / 工程 / 脚本检查通过。SenseVoice、Apple、Whisper、Qwen、共享 Audio 和纠错实现与 HEAD 一致。本次只改变 Fun-ASR 推理策略及相关校验；版本为 **0.4.1**。
+- **尚未执行 0.4.1 的 iOS SDK 编译、GitHub Actions 或 iPhone 验证**。没有手机 CER、峰值内存或能耗结论；预算保护不证明模型自身无漏字或分段边界对语义无影响。
+
+以下保留 0.4.0 的历史记录，其中 10 秒 / 256 参数及未完成 Mac 推理的状态已被上述 0.4.1 结果取代。
+
+## 2026-10-28：Fun-ASR-MLT-Nano 第四套引擎（0.4.0）
+
+- 下载社区 MLT ONNX INT8 转换版本 `luigi000/fun-asr-mlt-nano-onnx-int8`，固定 revision `932d7dbb98623bd31314015b3bc0dac0dcf80acc`。三份权重、六份 tokenizer 文件、独立 Silero VAD 共 **1,010,411,868 字节**。LFS SHA-256、普通文件 Git blob、完整 manifest、许可证及来源记录均验证通过；三份权重与 sherpa 普通常见 Nano 包不同，无 `.part` 残留。
+- 读取真实 ONNX protobuf 元数据，确认 LLM 的 **512-token KV / 28 层 / float32 IO / hidden 1024** 与 encoder **LFR 7:6**。引擎使用约 10 秒最大 VAD 段及 256 个最大生成 token，给音频、提示及输出共同留空间；准备脚本包含该导出契约验证。该检查不等于实际推理验收。
+- 新增独立 FunASRSpeechEngine、LocalStore 导入扩展、默认 / 手选目录配置、单跑入口及第四套卡片结果。SenseVoice、Apple、Whisper、Qwen 的原引擎文件、音频 / 纠错代码、Qwen 导入扩展及 `runBoth` 方法与本轮 Git HEAD 一致；原生依赖及最低 iOS 版本不变。
+- **11,970 项核心断言通过**；新增第四套批次归属、纠错候选、结果持久化、无 Whisper 语言计划和导出检查。原有 11,965 项继续通过。
+- 全量真实模型存储检查通过，包含 SenseVoice / Whisper / Qwen / Fun-ASR 的文件导入与删除；新 MLT 检查覆盖未传完、tokenizer 缺失、哈希不匹配、失败替换保留旧模型、其他模型集隔离、冷启动复用、备份排除和保留外部原件。录音删除包含第四套全部历史结果及 FunASR 派生音频；清除全部同时验证四个默认源目录（包括断链）及内部模型目录为空。macOS 备份属性检查需在工具沙箱外运行已编译的临时测试程序。
+- `bash scripts/check_apple_speech.sh` 通过原有 PCM / 区间 / 取消 / 诊断回归。真实 sherpa C 头文件、targeted concurrency、存储、新引擎和 FunASRSmoke 类型检查通过；全部 App frontend parse、XcodeGen 工程生成、pbxproj / plist、脚本及 Git 文件检查通过。iOS 静态库包含 FunASR 原生实现符号。
+- 尝试链接 Mac Fun-ASR 真实推理检查程序，旧 SDK 仍缺少 ONNX Runtime 所需 `MLComputePlan` / `MLOptimizationHints`，未得到实际推理输出。**本次尚未完成 iOS SDK 编译、GitHub Actions、新版 iPhone 运行、准确率或峰值内存测试。** 复测步骤见 [Fun-ASR 接入说明](FUNASR_MLT.md)。
+
 ## 2026-10-28：Qwen3-ASR 第三套识别引擎（0.3.0）
 
 - 已下载固定 Hugging Face revision `68818b2313fe77bd06f6a7c5068ff3ef59d02b8a` 的 Qwen3-ASR 0.6B INT8、tokenizer，并配套 Silero VAD；七份必需文件共 **987,659,201 字节**。`python3 scripts/prepare_qwen_models.py --verify-only` 再次验证全部 SHA-256；许可证、来源、manifest 和 tokenizer 子目录完整，没有 `.part` 文件。

@@ -11,7 +11,7 @@
 | `recording.reference` | 人工参考稿，只用于评测 |
 | `recording.runs[]` | 每次转写记录；反复运行会追加，原记录不覆盖 |
 | `runs[].batchID` | 可选；同一次点击“识别”创建的各套引擎运行共用该 ID。主卡片只展示最新一轮；旧记录缺省时按引擎取最新结果 |
-| `runs[].engine` | `sensevoice_small_int8` / `apple_speechtranscriber` / `qwen3_asr_0_6b_int8` |
+| `runs[].engine` | `sensevoice_small_int8` / `apple_speechtranscriber` / `qwen3_asr_0_6b_int8` / `fun_asr_mlt_nano_int8` |
 | `runs[].status` | `running` / `completed` / `failed` / `cancelled` / `interrupted` |
 | `runs[].preparationMS` | 本次模型初始化和准备耗时，不含资源下载 |
 | `runs[].transcriptionMS` | 格式转换、切分、推理、拼接耗时；仅完成时记录完整值 |
@@ -42,3 +42,10 @@ Apple Speech 的成功和失败记录现在都会在 `configuration` 中保存 `
 
 
 Qwen 的 `modelVersion` 为 `qwen3-asr-0.6b-int8-2026-03-25-68818b2`。`qwen_model_sha256_*` 记录七份模型与 tokenizer 文件哈希；`qwen_*` 记录直接自动多语策略、128 维特征、1024 总序列长度、512 最大生成 token、496 保守输出长度检查、采样参数、已完成片段和错误阶段。`qwen_temporary_audio_removed` 记录派生音频清理结果。Qwen 不填写 `languageDetection` 或片段语言标签，其时间范围仅为 VAD 语音区间；不冒充逐字对齐。原有两套引擎的报告字段保持不变。
+
+
+Fun-ASR-MLT 的 `modelVersion` 为 `fun-asr-mlt-nano-2512-int8-932d7db`。`funasr_mlt_model_sha256_*` 记录十份配套文件哈希；`funasr_mlt_*` 记录直接自动转写、空语言提示、ITN、80 维特征、导出 KV 上限 512、生成上限 512、20 秒 VAD 及按需预算重试和错误阶段。ITN 属于此 ASR 路径的文本规整，后续 Foundation Models 纠错仍独立记录。该引擎不消费 Whisper 计划，不使用原生均匀分配的 token 时间戳，只记录实际 VAD / 重分段区间，不伪造逐字对齐或语言标签。系统日志前缀为 `VoiceBenchFunASRMLT`，含运行 ID / 阶段 / 错误码，不写入语音和转写正文。
+
+0.4.1 的 `funasr_mlt_context_policy=budget_retry_v2`。`funasr_mlt_prompt_tokens=23`、`funasr_mlt_budget_safety_tokens=16`；`funasr_mlt_attempt_count` / `retry_count` 是总尝试及重新细分次数，`min_accepted_headroom_tokens` 是最终接受片段的最小保守余量。`funasr_mlt_native_stop_reason` 明确原生接口不暴露停止原因，不能视作实测 EOS 状态。
+
+`funasr_mlt_context_attempts_json` 为 JSON 数组字符串，逐项记录 `start_frame` / `end_frame`（16 kHz 源区间）、`depth`、`audio_tokens_upper_bound`、`prompt_tokens`、`prefill_upper_bound`、`safe_output_budget`、`generated_tokens`（预检未推理为 `not_decoded`）和 `decision`。决策为 `accepted` / `prefill_budget_retry` / `near_limit_retry` / `budget_exhausted`；仅 accepted 的文字会写入 segments。最多保存前 256 条，超出的数量记录在 `funasr_mlt_attempts_omitted`，汇总仍累计全部尝试。这些诊断属于录音 metadata，随单条删除或清除全部一起删除。

@@ -160,6 +160,49 @@ check(threeEngineCard.runs.last?.engine == .qwen && threeEngineCard.runs.last?.m
 check(qwenRun.languageDetection == nil, "Qwen does not acquire a Whisper language plan")
 check(Report(recording: card, environment: [:]).markdown().contains("Qwen3-ASR"), "third model included in report")
 check(Run(engine: .senseVoice).modelVersion == previousSense.modelVersion && Run(engine: .apple).modelVersion == previousApple.modelVersion, "existing model versions remain unchanged")
+var funASRRun = Run(engine: .funASR); funASRRun.batchID = comparisonID
+funASRRun.status = .completed; funASRRun.rawText = "多语言 mixed speech"
+funASRRun.correction.status = "completed"; funASRRun.correction.text = "多语言 mixed speech."
+card.runs.append(funASRRun)
+check(card.latestComparisonRuns.map(\.id) == [nextSense.id, nextApple.id, qwenRun.id, funASRRun.id], "four independent engines join one comparison")
+check(card.correctionCandidates.map(\.id) == [nextSense.id, qwenRun.id, funASRRun.id] && card.hasCorrectionResults, "fourth result can be corrected and expanded")
+let fourEngineCard = try JSONDecoder().decode(Recording.self, from: JSONEncoder().encode(card))
+check(fourEngineCard.runs.last?.modelVersion == FunASRModel.version && fourEngineCard.runs.last?.engine == .funASR, "MLT identity and results survive restart")
+check(funASRRun.languageDetection == nil, "MLT does not consume a Whisper language plan")
+check(Report(recording: card, environment: [:]).markdown().contains("Fun-ASR-MLT-Nano"), "MLT report includes the fourth model")
 var newerApple = Run(engine: .apple); newerApple.batchID = UUID(); card.runs.append(newerApple)
 check(card.latestComparisonRuns.map(\.id) == [newerApple.id], "single-engine debug does not mix in an old Qwen result")
+// Independent KV-exhaustion oracle: a result stopped at capacity must never be accepted.
+for frames in stride(from: 1600, through: 32 * 16000, by: 80) {
+    let budget = FunASRContextBudget(sampleCount: frames)
+    let fbankFrames = (frames + 80) / 160 // snip_edges=false, 10 ms frames.
+    let lfrFrames = max(0, (fbankFrames - 7) / 6 + 1)
+    check(budget.audioTokensUpperBound >= lfrFrames, "conservative audio budget covers native LFR rounding")
+    let nativePrefill = lfrFrames + 23
+    let exhaustedOutput = max(0, 512 - nativePrefill)
+    check(!budget.accepts(generatedTokens: exhaustedOutput), "KV-exhausted output cannot masquerade as success below max_new_tokens")
+    if budget.canDecode {
+        check(budget.accepts(generatedTokens: budget.availableOutputTokens), "safe output budget remains usable")
+        check(budget.prefillUpperBound + budget.availableOutputTokens <= 512 - 16, "accepted output reserves cache safety margin")
+    }
+}
+let twentySeconds = FunASRContextBudget(sampleCount: 20 * 16000)
+check(twentySeconds.prefillUpperBound >= 356 && !twentySeconds.accepts(generatedTokens: 156), "real 20s native prefill=356 regression: count 156 is below old 256 guard but exhausts KV")
+let officialShort = FunASRContextBudget(sampleCount: 89472)
+check(officialShort.prefillUpperBound >= 116 && officialShort.accepts(generatedTokens: 11), "real 5.592s native prefill=116 / 11 output tokens stays accepted")
+check(officialShort.accepts(generatedTokens: 300), "short audio can use safe output beyond the old artificial 256 cap")
+check(!officialShort.accepts(generatedTokens: -1), "invalid native token count rejected")
+check(!FunASRContextBudget(sampleCount: 0).canDecode && !FunASRContextBudget(sampleCount: -1).canDecode, "empty and negative input rejected")
+check(!FunASRContextBudget(sampleCount: 33 * 16000).canDecode, "oversized derived audio cannot bypass budget checks")
+var continuous = Array(repeating: Float(0.3), count: 20 * 16000)
+for i in 182000..<185000 { continuous[i] = 0 }
+let pauseCut = FunASRChunkBoundary.splitOffset(samples: continuous, depth: 0)
+check(pauseCut.map { (182000..<185000).contains($0) } == true, "retry prefers an actual quiet interval near the middle")
+check(FunASRChunkBoundary.splitOffset(samples: Array(repeating: 0.1, count: 63999), depth: 0) == nil, "retry cannot create sub-two-second children")
+check(FunASRChunkBoundary.splitOffset(samples: continuous, depth: FunASRChunkBoundary.maximumRetryDepth) == nil, "retry depth is bounded")
+check(FunASRChunkBoundary.shouldMerge(previousStart: 0, previousEnd: 320000, nextStart: 320000, nextEnd: 326400), "short tail after forced VAD boundary keeps preceding context")
+check(!FunASRChunkBoundary.shouldMerge(previousStart: 0, previousEnd: 320000, nextStart: 330000, nextEnd: 336400), "short utterance after real silence is independent")
+check(!FunASRChunkBoundary.shouldMerge(previousStart: 0, previousEnd: 320000, nextStart: 320000, nextEnd: 640000), "two full spans cannot create an unbounded model input")
+continuous[1000] = .nan
+check(FunASRChunkBoundary.splitOffset(samples: continuous, depth: 0) == nil, "invalid audio cannot manufacture a retry boundary")
 print("PASS: \(checks) core checks. These are logic tests, not device/ASR accuracy tests.")

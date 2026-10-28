@@ -4,12 +4,14 @@ public enum EngineID: String, Codable, CaseIterable, Identifiable, Sendable {
     case senseVoice = "sensevoice_small_int8"
     case apple = "apple_speechtranscriber"
     case qwen = "qwen3_asr_0_6b_int8"
+    case funASR = "fun_asr_mlt_nano_int8"
     public var id: String { rawValue }
     public var title: String {
         switch self {
         case .senseVoice: return "SenseVoice"
         case .apple: return "Apple Speech"
         case .qwen: return "Qwen3-ASR"
+        case .funASR: return "Fun-ASR-MLT-Nano"
         }
     }
 }
@@ -76,6 +78,7 @@ public struct Run: Codable, Identifiable, Sendable {
         case .apple: modelVersion = "system-managed/unknown"
         case .senseVoice: modelVersion = "sense-voice-int8-2024-07-17"
         case .qwen: modelVersion = QwenASRModel.version
+        case .funASR: modelVersion = FunASRModel.version
         }
     }
     public func rtf(duration: Double) -> Double? {
