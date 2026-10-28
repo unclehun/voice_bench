@@ -12,7 +12,7 @@ struct SenseVoiceSmoke {
             let reportURL = URL(fileURLWithPath: CommandLine.arguments[3])
             let input = try AVAudioFile(forReading: audio)
             let engine = SenseVoiceEngine()
-            let result = try await engine.transcribe(source: audio, models: models, language: "auto", lowMemory: false, cancellation: CancellationFlag()) { segment in
+            let result = try await engine.transcribe(source: audio, models: models, cancellation: CancellationFlag()) { segment in
                 print("Segment \(segment.id): \(segment.text)")
             }
             guard !result.text.isEmpty, !result.segments.isEmpty else { throw BenchError("No text returned for known speech sample") }

@@ -124,3 +124,11 @@ swiftc -typecheck -strict-concurrency=targeted -module-cache-path .build-local/m
 - 清除全部测试将 Application Support、Documents、临时目录分开；填入两类模型、未知残留、未完成导入、音频、多引擎历史结果及纠错、嵌套 CAF、临时报告和旧版残留，确认清理后各拥有目录为空、外部原件仍在。另验证断开模型目录链接、迟到保存、分享回调、重复清理和重启后重新使用。
 - 模拟临时目录父节点变成普通文件：清除全部继续删除录音及默认模型目录，但明确报错；修复该节点后重试完成。失败不虚报清理成功。
 - 核心 11,958 项逻辑检查、完整 SenseVoice / Whisper 模型导入与存储生命周期测试继续通过。新存储代码的主机类型检查、App Swift 语法检查和工程配置检查通过；没有声称已完成本次 iOS 编译或 iPhone 运行验证。
+
+
+## 2026-10-28：0.2.2 设置简化
+
+- 移除设置页的系统配置区域及对应的手工语言、低内存模式、运行顺序切换状态和逻辑。
+- SenseVoice 原生识别接口固定 `language=auto`，不再接收手工语言参数；SenseVoice / Whisper 沿用原默认 2 线程、25 秒 VAD 上限。双引擎识别顺序固定为 SenseVoice → Apple Speech。
+- 同步修改调用接口、运行报告配置与原生烟雾测试脚本，保留模型导入、苹果语言资源准备、纠错状态及全部数据清理入口。
+- `check_local.sh` 的 11,958 项核心检查通过；全部 App Swift 语法检查，以及真实 sherpa C API 下 SenseVoice / Whisper 与烟雾测试脚本的 targeted concurrency 类型检查通过。已检查没有残留的可调状态引用。未执行本次 iOS SDK 编译或真机识别。

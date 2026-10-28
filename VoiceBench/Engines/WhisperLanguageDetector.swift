@@ -25,7 +25,7 @@ private final class LanguageStrings {
 actor WhisperLanguageDetector {
     private let logger = Logger(subsystem: "com.voicebench.demo", category: "LanguageID")
 
-    func detect(source: URL, models: URL, runID: UUID, lowMemory: Bool,
+    func detect(source: URL, models: URL, runID: UUID,
                 cancellation: CancellationFlag, temporaryFiles: AppTemporaryFiles = .live,
                 progress: @escaping @Sendable (Int) async -> Void) async throws -> LanguageDetection {
         let start = ProcessInfo.processInfo.systemUptime
@@ -41,7 +41,7 @@ actor WhisperLanguageDetector {
             var config = SherpaOnnxSpokenLanguageIdentificationConfig()
             config.whisper.encoder = strings.add(models.appendingPathComponent("tiny-encoder.int8.onnx").path)
             config.whisper.decoder = strings.add(models.appendingPathComponent("tiny-decoder.int8.onnx").path)
-            config.num_threads = lowMemory ? 1 : 2
+            config.num_threads = 2
             config.provider = strings.add("cpu")
             guard let identifier = SherpaOnnxCreateSpokenLanguageIdentification(&config) else {
                 throw BenchError("Whisper Tiny 初始化失败，请重新导入配套 INT8 模型。")
@@ -54,7 +54,7 @@ actor WhisperLanguageDetector {
             vadConfig.silero_vad.min_silence_duration = 0.6
             vadConfig.silero_vad.min_speech_duration = 0
             vadConfig.silero_vad.window_size = 512
-            vadConfig.silero_vad.max_speech_duration = lowMemory ? 12 : 25
+            vadConfig.silero_vad.max_speech_duration = 25
             vadConfig.sample_rate = 16000
             vadConfig.num_threads = 1
             vadConfig.provider = strings.add("cpu")

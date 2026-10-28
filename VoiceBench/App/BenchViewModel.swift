@@ -26,9 +26,6 @@ final class BenchViewModel: ObservableObject {
     @Published var languageModelDetail = "正在检查 Whisper 默认目录…"
     @Published var speech = SpeechCapability(available: false, installed: false, detail: "正在检查…")
     @Published var correctionUnavailable: String? = "正在检查…"
-    @Published var lowMemory = false
-    @Published var language = "auto"
-    @Published var appleFirst = false
     @Published var shareFiles: [URL] = []
     @Published var showShare = false
     @Published var evaluations: [UUID: RunEvaluation] = [:]
@@ -289,7 +286,7 @@ final class BenchViewModel: ObservableObject {
         guard idle, !engines.isEmpty, let recording = recordings.first(where: { $0.id == recordingID }), let store else { return }
         stopPlayback(); selectedID = recordingID
         begin("开始转写…", recordingID: recordingID, activity: .recognition)
-        let flag = cancellation, chosenLanguage = language, lowMemory = lowMemory
+        let flag = cancellation
         let receipt = modelReceipt
         let languageReceipt = languageModelReceipt
         task = Task {
@@ -320,7 +317,7 @@ final class BenchViewModel: ObservableObject {
                 run.configuration["execution_state"] = "executing"
                 if engine == .senseVoice {
                     run.configuration.merge(receipt?.files.mapKeys { "model_sha256_" + $0 } ?? [:]) { _, new in new }
-                    run.configuration.merge(["language": chosenLanguage, "threads": lowMemory ? "1" : "2",
+                    run.configuration.merge(["language": "auto", "threads": "2",
                                              "provider": "cpu", "sample_rate": "16000", "itn": "true",
                                              "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2"]) { _, new in new }
                 } else {
@@ -328,8 +325,8 @@ final class BenchViewModel: ObservableObject {
                     run.configuration["offline"] = "true"
                     run.configuration.merge(languageReceipt?.files.mapKeys { "lid_model_sha256_" + $0 } ?? [:]) { _, new in new }
                     run.configuration.merge(["lid_model": LanguageDetection.modelVersion, "lid_provider": "cpu",
-                        "lid_threads": lowMemory ? "1" : "2", "lid_sample_rate": "16000", "lid_window_seconds": "5",
-                        "lid_vad_max_seconds": lowMemory ? "12" : "25", "lid_vad_min_silence": "0.6",
+                        "lid_threads": "2", "lid_sample_rate": "16000", "lid_window_seconds": "5",
+                        "lid_vad_max_seconds": "25", "lid_vad_min_silence": "0.6",
                         "lid_vad_min_speech": "0", "lid_tail_merge_seconds": "1", "lid_edge_padding_ms": "200",
                         "lid_strategy": "vad-window-vote-v1", "lid_confidence": "not_exposed_by_api",
                         "lid_short_window_warning_seconds": "1"]) { _, new in new }
@@ -344,13 +341,13 @@ final class BenchViewModel: ObservableObject {
                     let output: EngineOutput
                     if engine == .senseVoice {
                         guard receipt != nil else { throw BenchError("请先导入完整的 SenseVoice 模型目录。") }
-                        output = try await sense.transcribe(source: source, models: models, language: chosenLanguage,
-                                                           lowMemory: lowMemory, cancellation: flag, temporaryFiles: workFiles, progress: progress)
+                        output = try await sense.transcribe(source: source, models: models, cancellation: flag,
+                                                           temporaryFiles: workFiles, progress: progress)
                     } else {
                         guard languageReceipt != nil else { throw BenchError("请先导入 WhisperTiny_INT8 语言检测模型。") }
                         message = "Whisper Tiny 正在检测整段录音的语言…"
                         let plan = try await languageDetector.detect(source: source, models: languageModels,
-                            runID: runID, lowMemory: lowMemory, cancellation: flag, temporaryFiles: workFiles) { [weak self] count in
+                            runID: runID, cancellation: flag, temporaryFiles: workFiles) { [weak self] count in
                                 await self?.setMessage("Whisper Tiny 已检测 \(count) 个语言窗口…")
                             }
                         run.languageDetection = plan
@@ -404,8 +401,7 @@ final class BenchViewModel: ObservableObject {
     func runBoth(recordingID: UUID) {
         guard idle else { return }
         guard bothReady else { error = "请先到设置完成 SenseVoice、Whisper 和苹果语言资源配置。"; return }
-        run(appleFirst ? [.apple, .senseVoice] : [.senseVoice, .apple], recordingID: recordingID)
-        appleFirst.toggle()
+        run([.senseVoice, .apple], recordingID: recordingID)
     }
 
     func correctLatest(recordingID: UUID) {

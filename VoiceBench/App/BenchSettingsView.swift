@@ -16,6 +16,8 @@ struct BenchSettingsView: View {
                 Button("选择其他 SenseVoice 目录…", systemImage: "folder") { sensePicker = true }.disabled(!model.idle)
                 Text("文件 → 在我的 iPhone → 语音对比 → SenseVoiceSmall_INT8")
                     .font(.caption).foregroundStyle(.secondary)
+                Text("SenseVoice 自动检测录音语言，无需手动选择。")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 status("Whisper Tiny INT8 · 自动语言检测", detail: model.languageModelDetail, ready: model.languageModelReceipt != nil)
@@ -33,15 +35,6 @@ struct BenchSettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 status("本地文字纠错", detail: model.correctionUnavailable ?? "系统文字模型可用", ready: model.correctionUnavailable == nil)
             }
-            Section("系统配置") {
-                Picker("SenseVoice 语言", selection: $model.language) {
-                    Text("自动检测").tag("auto"); Text("中文").tag("zh"); Text("英文").tag("en")
-                }
-                Toggle("低内存模式", isOn: $model.lowMemory)
-                Toggle("下一轮 Apple 先运行", isOn: $model.appleFirst)
-                Text("两套引擎依次运行，每轮自动交换顺序。默认 2 线程、25 秒分段；低内存模式使用 1 线程、12 秒分段。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }.disabled(!model.idle)
             Section("数据管理") {
                 Button("清除全部本机数据与模型", role: .destructive) { confirmClear = true }.disabled(!model.idle)
                 Text("删除全部录音、识别、纠错、评测、模型和临时报告。移除 App 时选择“删除 App”才能一并删除数据。")

@@ -22,7 +22,7 @@ struct EngineOutput: Sendable {
 }
 
 actor SenseVoiceEngine {
-    func transcribe(source: URL, models: URL, language: String, lowMemory: Bool,
+    func transcribe(source: URL, models: URL,
                     cancellation: CancellationFlag, temporaryFiles: AppTemporaryFiles = .live,
                     progress: @escaping @Sendable (Segment) async -> Void) async throws -> EngineOutput {
         let start = ProcessInfo.processInfo.systemUptime
@@ -33,9 +33,9 @@ actor SenseVoiceEngine {
         config.feat_config.feature_dim = 80
         config.model_config.tokens = arena.add(models.appendingPathComponent("tokens.txt").path)
         config.model_config.sense_voice.model = arena.add(models.appendingPathComponent("model.int8.onnx").path)
-        config.model_config.sense_voice.language = arena.add(language)
+        config.model_config.sense_voice.language = arena.add("auto")
         config.model_config.sense_voice.use_itn = 1
-        config.model_config.num_threads = lowMemory ? 1 : 2
+        config.model_config.num_threads = 2
         config.model_config.provider = arena.add("cpu")
         config.model_config.model_type = arena.add("sense_voice")
         config.decoding_method = arena.add("greedy_search")
@@ -49,7 +49,7 @@ actor SenseVoiceEngine {
         vadConfig.silero_vad.min_silence_duration = 0.6
         vadConfig.silero_vad.min_speech_duration = 0.0
         vadConfig.silero_vad.window_size = 512
-        vadConfig.silero_vad.max_speech_duration = lowMemory ? 12 : 25
+        vadConfig.silero_vad.max_speech_duration = 25
         vadConfig.sample_rate = 16000
         vadConfig.num_threads = 1
         vadConfig.provider = arena.add("cpu")
@@ -112,9 +112,9 @@ actor SenseVoiceEngine {
         try cancellation.check()
         return EngineOutput(preparationMS: (ready - start) * 1000,
                             transcriptionMS: (ProcessInfo.processInfo.systemUptime - ready) * 1000, segments: segments,
-                            configuration: ["sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2", "provider": "cpu", "language": language,
-                                            "threads": lowMemory ? "1" : "2", "sample_rate": "16000", "itn": "true",
-                                            "vad_max_seconds": lowMemory ? "12" : "25", "vad_min_silence": "0.6",
+                            configuration: ["sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2", "provider": "cpu", "language": "auto",
+                                            "threads": "2", "sample_rate": "16000", "itn": "true",
+                                            "vad_max_seconds": "25", "vad_min_silence": "0.6",
                                             "vad_min_speech": "0", "edge_padding_ms": "200", "overlap": "clamped_to_previous_end"])
     }
 }
