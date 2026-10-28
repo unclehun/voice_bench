@@ -19,11 +19,14 @@
 		51CF361BA58E7BF2F59B7C9F /* sherpa-onnx.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 76A69D53F4B7C7A2E60AA21D /* sherpa-onnx.xcframework */; };
 		56326F762E777211CCBCF3C0 /* WhisperLanguageDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8F198B4438443E73999E8A0 /* WhisperLanguageDetector.swift */; };
 		5926C5209FA482E20187932E /* licenses in Resources */ = {isa = PBXBuildFile; fileRef = 45BD476067478DC42C98693F /* licenses */; };
+		5AEC23C4D4C9FC1AE1FA6606 /* qwen-model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 07109D7581A7BF0C2CADC413 /* qwen-model-manifest.json */; };
 		5EB6F6099C51A9FEB46511CF /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70B21BAD8AD25E04275023BB /* Accelerate.framework */; };
 		76BCB465AFC67C8B0BC26C17 /* FoundationModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 68471BF46FAE67A11C7720B9 /* FoundationModels.framework */; };
+		78F921D7A8E29F38EFA96EFB /* QwenSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */; };
 		9FCE048E15914717C4534F9A /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 41369DDD178EF59E2F87F316 /* CoreML.framework */; };
 		A37D2FD34B5CD66E20E5E618 /* model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = A7148698F0BFFF89EB1F680E /* model-manifest.json */; };
 		A6B0E6357AF0608228E851C1 /* BenchComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFAC48F57F95795D0A41AAFF /* BenchComponents.swift */; };
+		A91AFEF87E8AD1FA615F7E25 /* LocalStore+Qwen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6111F43FCF2190F06602E303 /* LocalStore+Qwen.swift */; };
 		AC149280006A93A7413674B4 /* LocalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117193E8BDCF764D0FDDB300 /* LocalStore.swift */; };
 		AC7C72EB89CA290847180BE6 /* VoiceBenchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B3C2675E1EE397E670D2A0F /* VoiceBenchApp.swift */; };
 		CCFDA7F13B63D0AF604704E4 /* BenchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4346D668EEBB9F2F30BC9C53 /* BenchView.swift */; };
@@ -40,6 +43,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		07109D7581A7BF0C2CADC413 /* qwen-model-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "qwen-model-manifest.json"; sourceTree = "<group>"; };
 		0B898DCB06C8A56FC84DA03C /* RecordingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCard.swift; sourceTree = "<group>"; };
 		117193E8BDCF764D0FDDB300 /* LocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStore.swift; sourceTree = "<group>"; };
 		20F1573DBB0E6F3E2FF5DA2E /* language-model-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "language-model-manifest.json"; sourceTree = "<group>"; };
@@ -52,12 +56,14 @@
 		4B3C2675E1EE397E670D2A0F /* VoiceBenchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceBenchApp.swift; sourceTree = "<group>"; };
 		5103244B66962827068103B2 /* VoiceBench.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = VoiceBench.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F75EB11AB2F97E4AE2D1476 /* BenchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchViewModel.swift; sourceTree = "<group>"; };
+		6111F43FCF2190F06602E303 /* LocalStore+Qwen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalStore+Qwen.swift"; sourceTree = "<group>"; };
 		67E622CB0DFE195B9756D101 /* AppleTextCorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleTextCorrector.swift; sourceTree = "<group>"; };
 		68471BF46FAE67A11C7720B9 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = System/Library/Frameworks/FoundationModels.framework; sourceTree = SDKROOT; };
 		70B21BAD8AD25E04275023BB /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
 		733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechEngine.swift; sourceTree = "<group>"; };
 		753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenseVoiceEngine.swift; sourceTree = "<group>"; };
 		76A69D53F4B7C7A2E60AA21D /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "Vendor/sherpa-onnx.xcframework"; sourceTree = "<group>"; };
+		8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenSpeechEngine.swift; sourceTree = "<group>"; };
 		8EC970CCAF6CCDA56E245FE5 /* PCMFileReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMFileReader.swift; sourceTree = "<group>"; };
 		941E43A1051BC579DE6DE723 /* RecordingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSheet.swift; sourceTree = "<group>"; };
 		99EDD6C38722E840CAFE1640 /* voice_bench */ = {isa = PBXFileReference; lastKnownFileType = folder; name = voice_bench; path = .; sourceTree = SOURCE_ROOT; };
@@ -112,6 +118,7 @@
 			children = (
 				9F9AFF8597E67D409A7E17BD /* AppleSpeechDiagnostics.swift */,
 				733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */,
+				8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */,
 				753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */,
 				F8F198B4438443E73999E8A0 /* WhisperLanguageDetector.swift */,
 			);
@@ -198,6 +205,7 @@
 			children = (
 				20F1573DBB0E6F3E2FF5DA2E /* language-model-manifest.json */,
 				A7148698F0BFFF89EB1F680E /* model-manifest.json */,
+				07109D7581A7BF0C2CADC413 /* qwen-model-manifest.json */,
 			);
 			path = config;
 			sourceTree = "<group>";
@@ -207,6 +215,7 @@
 			children = (
 				2C9F0EA5ED330A9C89B8B80C /* AppTemporaryFiles.swift */,
 				117193E8BDCF764D0FDDB300 /* LocalStore.swift */,
+				6111F43FCF2190F06602E303 /* LocalStore+Qwen.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -275,6 +284,7 @@
 				0FA2F1C1D03F21F265127E58 /* language-model-manifest.json in Resources */,
 				5926C5209FA482E20187932E /* licenses in Resources */,
 				A37D2FD34B5CD66E20E5E618 /* model-manifest.json in Resources */,
+				5AEC23C4D4C9FC1AE1FA6606 /* qwen-model-manifest.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -294,8 +304,10 @@
 				E55E8D6136D171657BD27F06 /* BenchSettingsView.swift in Sources */,
 				CCFDA7F13B63D0AF604704E4 /* BenchView.swift in Sources */,
 				F853195F598A490DF2815DD9 /* BenchViewModel.swift in Sources */,
+				A91AFEF87E8AD1FA615F7E25 /* LocalStore+Qwen.swift in Sources */,
 				AC149280006A93A7413674B4 /* LocalStore.swift in Sources */,
 				065C606A93592887A5EB98F5 /* PCMFileReader.swift in Sources */,
+				78F921D7A8E29F38EFA96EFB /* QwenSpeechEngine.swift in Sources */,
 				F60A614344176EFE93C5EBBF /* RecordingCard.swift in Sources */,
 				F4E1EA9821ED845D337C27AB /* RecordingDetailsView.swift in Sources */,
 				E6A77D00A88C0E4F9F2C8030 /* RecordingSheet.swift in Sources */,
@@ -362,7 +374,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.3.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -451,7 +463,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.3.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -107,8 +107,10 @@ enum CleanupChecks {
         try await store.delete(brokenRecord)
         try require(try await store.load().map(\.id) == [second.id], "Broken work-directory entry blocked complete recording deletion")
         for url in [store.models.appendingPathComponent("model.bin"), store.languageModels.appendingPathComponent("encoder.bin"),
+                    store.qwenModels.appendingPathComponent("tokenizer/vocab.json"),
                     store.defaultModelDirectory.appendingPathComponent("source.onnx"),
                     store.defaultLanguageModelDirectory.appendingPathComponent("source.onnx"),
+                    store.defaultQwenModelDirectory.appendingPathComponent("tokenizer/vocab.json"),
                     appRoot.appendingPathComponent("Import-" + UUID().uuidString + "/partial.bin"),
                     appRoot.appendingPathComponent("unexpected.bin"), temp.root.appendingPathComponent("录音-partial.m4a")] {
             try put(url)
@@ -125,17 +127,19 @@ enum CleanupChecks {
         try manager.removeItem(at: store.defaultLanguageModelDirectory)
         try manager.createSymbolicLink(at: store.defaultLanguageModelDirectory, withDestinationURL: outside.appendingPathComponent("missing"))
         try await store.removeAllData()
+        try manager.removeItem(at: store.defaultQwenModelDirectory)
+        try manager.createSymbolicLink(at: store.defaultQwenModelDirectory, withDestinationURL: outside.appendingPathComponent("missing-qwen"))
         try await store.removeAllData()
         try await store.save(second)
         try await store.removeExport(report)
         try require(try await store.load().isEmpty, "Erase all resurrected a recording")
-        let senseReceipt = await store.modelReceipt(), whisperReceipt = await store.languageModelReceipt()
-        try require(senseReceipt == nil && whisperReceipt == nil, "Erase all retained model receipts")
-        for url in [store.audio, store.models, store.languageModels, store.root.appendingPathComponent("Records"),
-                    store.defaultModelDirectory, store.defaultLanguageModelDirectory, temp.root] {
+        let senseReceipt = await store.modelReceipt(), whisperReceipt = await store.languageModelReceipt(), qwenReceipt = await store.qwenModelReceipt()
+        try require(senseReceipt == nil && whisperReceipt == nil && qwenReceipt == nil, "Erase all retained model receipts")
+        for url in [store.audio, store.models, store.languageModels, store.qwenModels, store.root.appendingPathComponent("Records"),
+                    store.defaultModelDirectory, store.defaultLanguageModelDirectory, store.defaultQwenModelDirectory, temp.root] {
             try require(try manager.contentsOfDirectory(atPath: url.path).isEmpty, "Erase all left files in \(url.lastPathComponent)")
         }
-        try require(Set(try manager.contentsOfDirectory(atPath: appRoot.path)) == Set(["Audio", "Models", "LanguageIDModels", "Records"]), "Erase all left abandoned imports or unknown files")
+        try require(Set(try manager.contentsOfDirectory(atPath: appRoot.path)) == Set(["Audio", "Models", "LanguageIDModels", "QwenModels", "Records"]), "Erase all left abandoned imports or unknown files")
         try require(try manager.contentsOfDirectory(atPath: legacy.path) == ["unrelated.keep"], "Legacy cleanup leaked known files or deleted unrelated content")
         try require(manager.fileExists(atPath: keep.path) && manager.fileExists(atPath: source.path), "Erase all deleted external data")
         _ = try await store.importAudio(source)

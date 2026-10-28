@@ -150,4 +150,16 @@ var legacyObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(p
 legacyObject.removeValue(forKey: "batchID")
 let legacyRun = try JSONDecoder().decode(Run.self, from: JSONSerialization.data(withJSONObject: legacyObject))
 check(legacyRun.batchID == nil, "recordings predating card UI remain readable")
+var qwenRun = Run(engine: .qwen); qwenRun.batchID = comparisonID
+qwenRun.status = .completed; qwenRun.rawText = "混合 English 文字"
+card.runs.append(qwenRun)
+check(card.latestComparisonRuns.map(\.id) == [nextSense.id, nextApple.id, qwenRun.id], "third engine joins the current batch")
+check(card.correctionCandidates.map(\.id) == [nextSense.id, qwenRun.id], "three-engine corrections exclude failed Apple result")
+let threeEngineCard = try JSONDecoder().decode(Recording.self, from: JSONEncoder().encode(card))
+check(threeEngineCard.runs.last?.engine == .qwen && threeEngineCard.runs.last?.modelVersion == QwenASRModel.version, "Qwen result persists with pinned identity")
+check(qwenRun.languageDetection == nil, "Qwen does not acquire a Whisper language plan")
+check(Report(recording: card, environment: [:]).markdown().contains("Qwen3-ASR"), "third model included in report")
+check(Run(engine: .senseVoice).modelVersion == previousSense.modelVersion && Run(engine: .apple).modelVersion == previousApple.modelVersion, "existing model versions remain unchanged")
+var newerApple = Run(engine: .apple); newerApple.batchID = UUID(); card.runs.append(newerApple)
+check(card.latestComparisonRuns.map(\.id) == [newerApple.id], "single-engine debug does not mix in an old Qwen result")
 print("PASS: \(checks) core checks. These are logic tests, not device/ASR accuracy tests.")

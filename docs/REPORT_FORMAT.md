@@ -6,12 +6,12 @@
 |---|---|
 | `schemaVersion` | 报告格式版本 |
 | `environment` | 导出设备、OS、App build 等；每次运行自己的环境同时保存在 run configuration |
-| `recording.sha256` | 原始音频文件哈希，两套引擎共用 |
+| `recording.sha256` | 原始音频文件哈希，各套引擎共用 |
 | `recording.duration` | 原始音频秒数 |
 | `recording.reference` | 人工参考稿，只用于评测 |
 | `recording.runs[]` | 每次转写记录；反复运行会追加，原记录不覆盖 |
-| `runs[].batchID` | 可选；同一次点击“识别”创建的两套引擎运行共用该 ID。主卡片只展示最新一轮；旧记录缺省时按引擎取最新结果 |
-| `runs[].engine` | `sensevoice_small_int8` / `apple_speechtranscriber` |
+| `runs[].batchID` | 可选；同一次点击“识别”创建的各套引擎运行共用该 ID。主卡片只展示最新一轮；旧记录缺省时按引擎取最新结果 |
+| `runs[].engine` | `sensevoice_small_int8` / `apple_speechtranscriber` / `qwen3_asr_0_6b_int8` |
 | `runs[].status` | `running` / `completed` / `failed` / `cancelled` / `interrupted` |
 | `runs[].preparationMS` | 本次模型初始化和准备耗时，不含资源下载 |
 | `runs[].transcriptionMS` | 格式转换、切分、推理、拼接耗时；仅完成时记录完整值 |
@@ -39,3 +39,6 @@ Apple Speech 的成功和失败记录现在都会在 `configuration` 中保存 `
 
 
 卡片界面只改变展示方式；`recording.runs[]` 仍导出该录音的全部历史运行。`configuration.execution_state` 为 `queued` / `executing` / `finished`，排队行也使用 `status=running`，取消会同时关闭未执行的排队行。旧版无 `batchID` 的记录仍能读取。
+
+
+Qwen 的 `modelVersion` 为 `qwen3-asr-0.6b-int8-2026-03-25-68818b2`。`qwen_model_sha256_*` 记录七份模型与 tokenizer 文件哈希；`qwen_*` 记录直接自动多语策略、128 维特征、1024 总序列长度、512 最大生成 token、496 保守输出长度检查、采样参数、已完成片段和错误阶段。`qwen_temporary_audio_removed` 记录派生音频清理结果。Qwen 不填写 `languageDetection` 或片段语言标签，其时间范围仅为 VAD 语音区间；不冒充逐字对齐。原有两套引擎的报告字段保持不变。

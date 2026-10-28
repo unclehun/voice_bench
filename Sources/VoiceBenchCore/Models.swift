@@ -3,8 +3,15 @@ import Foundation
 public enum EngineID: String, Codable, CaseIterable, Identifiable, Sendable {
     case senseVoice = "sensevoice_small_int8"
     case apple = "apple_speechtranscriber"
+    case qwen = "qwen3_asr_0_6b_int8"
     public var id: String { rawValue }
-    public var title: String { self == .senseVoice ? "SenseVoice" : "Apple Speech" }
+    public var title: String {
+        switch self {
+        case .senseVoice: return "SenseVoice"
+        case .apple: return "Apple Speech"
+        case .qwen: return "Qwen3-ASR"
+        }
+    }
 }
 
 public enum RunStatus: String, Codable, Sendable {
@@ -65,7 +72,11 @@ public struct Run: Codable, Identifiable, Sendable {
     public var correction = Correction()
     public init(engine: EngineID) {
         self.engine = engine
-        modelVersion = engine == .apple ? "system-managed/unknown" : "sense-voice-int8-2024-07-17"
+        switch engine {
+        case .apple: modelVersion = "system-managed/unknown"
+        case .senseVoice: modelVersion = "sense-voice-int8-2024-07-17"
+        case .qwen: modelVersion = QwenASRModel.version
+        }
     }
     public func rtf(duration: Double) -> Double? {
         guard status == .completed, duration > 0, let ms = transcriptionMS else { return nil }

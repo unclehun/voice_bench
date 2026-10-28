@@ -1,5 +1,18 @@
 # 验证记录
 
+## 2026-10-28：Qwen3-ASR 第三套识别引擎（0.3.0）
+
+- 已下载固定 Hugging Face revision `68818b2313fe77bd06f6a7c5068ff3ef59d02b8a` 的 Qwen3-ASR 0.6B INT8、tokenizer，并配套 Silero VAD；七份必需文件共 **987,659,201 字节**。`python3 scripts/prepare_qwen_models.py --verify-only` 再次验证全部 SHA-256；许可证、来源、manifest 和 tokenizer 子目录完整，没有 `.part` 文件。
+- 新增独立 Qwen 引擎、模型导入扩展、配置区、默认目录及第三套结果展示；版本 0.3.0。原有 SenseVoiceEngine、AppleSpeechEngine、WhisperLanguageDetector、AppleSpeechDiagnostics、AppleTextCorrector、Audio 目录及 `runBoth` 方法与当前 Git HEAD 完全一致。原生依赖版本与最低 iOS 26.0 不变，iOS 静态库已确认含 Qwen 实现符号。
+- 核心 **11,965** 项断言通过，新增三引擎批次持久化、失败结果不纠错、单引擎运行不混入旧 Qwen 结果及导出兼容检查。
+- `bash scripts/check_audio.sh Models/VoiceBenchModels Models/WhisperTiny_INT8 Models/Qwen3ASR_0_6B_INT8` 编译通过；初次执行在工具沙箱中无法读取 macOS 备份属性，获准在沙箱外运行已编译校验程序后三套实际模型全部通过导入、校验与清理。新增合成文件检查覆盖 tokenizer 缺失 / 未传完、失败替换保留旧权重、独立模型集、启动复用、备份排除、外部原件保留；真实删除检查覆盖三套历史结果、Qwen 派生音频、共享模型保护、默认目录断链与清除全部。
+- `bash scripts/check_apple_speech.sh` 通过原有 PCM 尾块、格式转换、语言区间、取消、底层错误和诊断报告检查。未运行 SpeechAnalyzer 或苹果系统资源下载。
+- 真实 sherpa C API + targeted concurrency 类型检查通过，包括新增 Qwen、存储和现有 SenseVoice。全部 App Swift frontend parse、XcodeGen 工程生成、pbxproj / plist、脚本及 Git 文件检查通过。
+- 尝试链接真实 Mac Qwen 推理程序，旧 macOS SDK 缺少 ONNX Runtime 所需的 `MLComputePlan`、`MLOptimizationHints`，未能完成链接。**没有得到本次 Qwen 的实际推理输出、手机准确率或内存数据。** 可选真实样例验证程序为 `scripts/QwenSmoke.swift`。
+- 尚未执行本次更新的 iOS SDK 编译、GitHub Actions 或 iPhone 安装测试。模型未放入 Git / IPA，云端沿用原有手动构建流程。手机配置和验收步骤见 [Qwen 接入说明](QWEN_ASR.md)。
+
+以下为历史版本的验证记录。
+
 日期：2026-09-24。执行环境：MacBook Pro，M1 Pro，16GB，macOS 13.7.8，Apple Swift 5.8.1 / Command Line Tools。未安装 Xcode，未连接 GitHub 仓库，未连接 iPhone。
 
 ## 已实际完成

@@ -1,13 +1,13 @@
 # VoiceBench · 语音对比
 
-简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8** 与 **Apple SpeechTranscriber**。最低 iOS **26.0**，不接入替代引擎或云端 ASR。
+简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber** 与 **Qwen3-ASR 0.6B INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.3.0**。
 
 当前交付包含 Swift 源码、生成的 Xcode 工程、锁定依赖、模型准备脚本、手动触发的 GitHub Actions 工作流和本地逻辑校验。云端仓库为 [unclehun/voice_bench](https://github.com/unclehun/voice_bench)，操作步骤见 [GitHub 云端编译](docs/GITHUB_ACTIONS.md)。**本地验证尚不包含 iOS SDK 编译或 iPhone 测试，实际云端构建状态以 Actions 为准。**验证边界见 [验证记录](docs/VALIDATION.md)。
 
 ## 功能
 
 - 录音、M4A / WAV 导入、播放、录音选择和删除。
-- 两套引擎各自执行或依次执行；每轮可交替先后顺序。
+- 原有两套引擎保持原流程；载入 Qwen 后，每轮依次运行三套引擎，详情页可单独测试任一引擎。
 - 同一源文件的 SHA-256、原始文本、分段时间、初始化时间、转写时间及 RTF。
 - 模型文件校验、Whisper Tiny 自动语言检测、苹果中英文资源准备、可用性检查、错误和取消状态。
 - 原文及完成片段落盘，重启后把未完成任务标记为中断。
@@ -18,15 +18,15 @@
 主界面按录音显示卡片，左上角 **+** 打开录音浮层，右上角 **设置** 进入模型配置与数据管理。无需登录 App 账号或配置服务端。
 
 - 录音浮层显示计时器：红色圆形开始录音，绿色方形停止并保存，两种按钮互斥。停止后自动返回列表，新录音按“录音 1、录音 2…”命名；浮层也保留音频文件导入入口。
-- 卡片点击 **识别**，依次运行两套引擎并展示本轮结果。每轮结果归为一个 batch，新一轮排队时不会拼上旧一轮的文字或纠错；历史记录在 **详情** 中保留。
-- 点击卡片 **纠错**，依次处理本轮已成功识别的非空文本。完成后出现绿色三角图标，点击展开 / 收起两套纠错结果；失败会显示错误，没有结果时不显示三角。
+- 卡片点击 **识别**，依次运行 SenseVoice、Apple，再运行已载入的 Qwen，展示本轮结果；未载入 Qwen 时继续原有双引擎流程。每轮结果归为一个 batch，新一轮排队时不会拼上旧一轮的文字或纠错；历史记录在 **详情** 中保留。
+- 点击卡片 **纠错**，依次处理本轮已成功识别的非空文本。完成后出现绿色三角图标，点击展开 / 收起各套纠错结果；失败会显示错误，没有结果时不显示三角。
 - 卡片可播放 / 停止音频、删除整条录音。删除会清理该录音的音频、全部历史识别与纠错、参考稿、背景和内部临时工作文件，保留其他录音与共享模型。
-- **设置** 集中管理 SenseVoice / Whisper 默认目录及手工导入、Apple 语言资源、纠错可用性和全部数据清理，可通过系统返回按钮回主界面。
+- **设置** 集中管理 SenseVoice / Whisper / Qwen 默认目录及手工导入、Apple 语言资源、纠错可用性和全部数据清理，可通过系统返回按钮回主界面。
 - **详情** 保留参考稿、纠错背景、CER、JSON / Markdown 导出、历史运行明细和单引擎调试入口。
 
 ## 运行条件
 
-手机必须运行 iOS 26+。系统版本满足要求后，还要通过 `SpeechTranscriber.isAvailable`、对应语言 locale 和系统资源检查。模型准备完成后，两引擎在手机上离线运行；“安装成功”不等于两引擎均可用。
+手机必须运行 iOS 26+。系统版本满足要求后，还要通过 `SpeechTranscriber.isAvailable`、对应语言 locale 和系统资源检查。模型准备完成后，各引擎在手机上离线运行；“安装成功”不等于各引擎均可用。
 
 主测试目标为用户的 iPhone 17 Pro / iOS 27。旧机只有通过两引擎实际离线转写后才列入兼容清单。Foundation Models 另受 Apple Intelligence 设备资格、地区、启用状态与语言限制，不能用它是否可用来决定 SpeechTranscriber 是否可用。
 
@@ -40,6 +40,7 @@ Apple Speech 重复报 `Foundation._GenericObjCError Code=0` 时，新版采用�
 - `project.yml`：工程配置的来源，变更后重新生成。
 - `Vendor/`：已下载、验证 SHA-256 的 iOS 静态 XCFramework（不提交 Git）。
 - `.tools/xcodegen/`：项目内的 XcodeGen 2.44.1，不是 Xcode。
+- `Models/Qwen3ASR_0_6B_INT8/`：完整 Qwen、tokenizer、VAD、许可证和 manifest，约 988 MB（不提交 Git，也不进入 IPA）。
 - `Models/WhisperTiny_INT8/`：Whisper Tiny 多语种 INT8 语言检测模型、独立 VAD、许可证及 manifest，约 103 MB（不提交 Git）。
 - `Models/VoiceBenchModels/`：准备好的手机模型导入目录，含权重、tokens、VAD、许可证和 manifest（不提交 Git）。
 
@@ -171,9 +172,22 @@ Apple 运行流程：整段音频转 16 kHz → Silero 找语音 → 每段按�
 
 苹果资源单独点“准备苹果语言资源”，首次联网准备中文和英文。检测出其他语言而未安装资源时，本次明确失败并保留检测计划；再次点此按钮会加入当前录音最后一次 Apple 运行检测到的语言。系统不支持的语言明确报错，不回退中文或云端 ASR。资源就绪后，开启飞行模式并关闭 Wi-Fi，重启 App，再验证双引擎。新流程的本地验证范围见 [验证记录](docs/VALIDATION.md)。
 
+### Qwen3-ASR 0.6B INT8（第三套识别引擎）
+
+模型已放在 `Models/Qwen3ASR_0_6B_INT8`，七份必需文件共 **987,659,201 字节**（约 988 MB）。重新下载或校验：
+
+```sh
+python3 scripts/prepare_qwen_models.py
+python3 scripts/prepare_qwen_models.py --verify-only
+```
+
+把完整文件夹传到 **文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_INT8**，保留 `tokenizer` 子目录。打开 App 或点设置中的“检查状态”自动载入；也可“从默认目录载入 Qwen3-ASR”或“选择其他 Qwen3-ASR 目录…”。文件树、空间要求和真机验收见 [Qwen 接入说明](docs/QWEN_ASR.md)。
+
+Qwen 独立直接转写多语言，不使用 Whisper 的语言标签或 Apple 的语言资源。载入后卡片“识别”自动加入第三套；详情 → 调试运行 → “仅 Qwen3-ASR”可独立测试。原有 SenseVoice、Whisper、Apple 和纠错引擎实现未修改。
+
 ## 评测方法
 
-先不做纠错，分别测试安静普通话、专名 / 数字 / 否定词、中英混说、噪声和长录音。点击卡片“识别”后固定依次运行 SenseVoice 与 Apple Speech，并分别保存结果。
+先不做纠错，分别测试安静普通话、专名 / 数字 / 否定词、中英混说、噪声和长录音。点击卡片“识别”后依次运行各套引擎，并分别保存结果。
 
 - `RTF = transcriptionMS / 1000 / audioDurationSeconds`；转写包括格式转换、VAD、Whisper 语言检测（Apple 路径）、推理和拼接。首次模型下载不计入 RTF，初始化单独记录。
 - CER 使用 Unicode scalar 编辑距离，移除标点和空白、统一 ASCII 英文字母大小写；不统一简繁、数字写法或语义。

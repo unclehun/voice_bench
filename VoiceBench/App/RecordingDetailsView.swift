@@ -80,6 +80,8 @@ struct RecordingDetailsView: View {
                             .disabled(!model.idle || model.modelReceipt == nil)
                         Button("仅 Apple") { model.run([.apple], recordingID: recordingID) }
                             .disabled(!model.idle || !model.appleReady)
+                        Button("仅 Qwen3-ASR") { model.run([.qwen], recordingID: recordingID) }
+                            .disabled(!model.idle || model.qwenModelReceipt == nil)
                     }
                 }
             } else { Text("该录音已删除。").foregroundStyle(.secondary) }

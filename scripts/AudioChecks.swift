@@ -13,6 +13,7 @@ struct AudioChecks {
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: base) }
         try await languageModelStorageChecks(base: base.appendingPathComponent("ModelFixtures"))
+        try await QwenModelChecks.run(base: base.appendingPathComponent("QwenFixtures"))
         let source = base.appendingPathComponent("synthetic.wav")
         fputs("Audio check: create source\n", stderr)
         let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48000, channels: 2, interleaved: false)!
@@ -63,7 +64,7 @@ struct AudioChecks {
         try await recordingDeletionChecks(store: store, source: source, keep: item)
         fputs("Storage check: backups, exports, invalid import and cold-launch recovery\n", stderr)
         let root = store.root
-        for name in ["", "Audio", "Records", "Models", "LanguageIDModels"] {
+        for name in ["", "Audio", "Records", "Models", "LanguageIDModels", "QwenModels"] {
             let url = name.isEmpty ? root : root.appendingPathComponent(name)
             guard try url.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true else {
                 throw BenchError("App data directory still included in backup: \(name)")
@@ -167,8 +168,10 @@ struct AudioChecks {
               try FileManager.default.contentsOfDirectory(atPath: audioDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: modelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.languageModels.path).isEmpty,
+              try FileManager.default.contentsOfDirectory(atPath: store.qwenModels.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultLanguageModelDirectory.path).isEmpty,
+              try FileManager.default.contentsOfDirectory(atPath: store.defaultQwenModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: temporary.root.path).isEmpty,
               FileManager.default.fileExists(atPath: externalCopy.path),
               FileManager.default.fileExists(atPath: source.path) else { throw BenchError("Clear all left app files, resurrected data or deleted external inputs") }
@@ -260,11 +263,15 @@ struct AudioChecks {
         try Data("interrupted derived audio".utf8).write(to: derived)
         let languageAudio = try work.file(extension: "caf", prefix: "LanguageID-")
         try Data("interrupted language detection".utf8).write(to: languageAudio)
+        let qwenAudio = try work.file(extension: "caf", prefix: "Qwen-")
+        try Data("interrupted Qwen audio".utf8).write(to: qwenAudio)
         let anotherWork = await store.workFiles(recordingID: keep.id)
         let preserved = try anotherWork.file(extension: "caf")
         try Data("other recording work".utf8).write(to: preserved)
         let sharedModel = store.models.appendingPathComponent("shared-model.keep")
         try Data("shared models must survive individual deletion".utf8).write(to: sharedModel)
+        let qwenModel = store.qwenModels.appendingPathComponent("shared-qwen.keep")
+        try Data("shared Qwen must survive individual deletion".utf8).write(to: qwenModel)
         try await store.delete(removed)
         try await store.delete(removed) // retry is safe even after all files were already removed.
         try await store.save(removed) // a delayed editor write must not resurrect any result.
@@ -276,11 +283,13 @@ struct AudioChecks {
               !FileManager.default.fileExists(atPath: store.root.appendingPathComponent("Records/" + removed.id.uuidString + ".json").path),
               report.allSatisfy({ !FileManager.default.fileExists(atPath: $0.path) }),
               FileManager.default.fileExists(atPath: preserved.path),
+              FileManager.default.fileExists(atPath: qwenModel.path),
               FileManager.default.fileExists(atPath: sharedModel.path) else {
             throw BenchError("Individual deletion leaked results/work files, changed another recording, or removed shared models")
         }
         try await store.removeExport(report) // delayed share callback is safe after deletion.
         try store.temporaryFiles.remove(anotherWork.root)
         try FileManager.default.removeItem(at: sharedModel)
+        try FileManager.default.removeItem(at: qwenModel)
     }
 }

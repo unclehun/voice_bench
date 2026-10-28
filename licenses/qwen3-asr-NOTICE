@@ -1,0 +1,12 @@
+Qwen3-ASR 0.6B is developed by the Qwen team, Alibaba Cloud.
+Original model: https://huggingface.co/Qwen/Qwen3-ASR-0.6B
+Original project: https://github.com/QwenLM/Qwen3-ASR
+License: Apache License, Version 2.0 (see qwen3-asr-LICENSE).
+
+ONNX conversion: Wasser1462 / zengyw
+https://github.com/Wasser1462/Qwen3-ASR-onnx
+Pre-trained INT8 assets distributed by the sherpa-onnx project:
+https://huggingface.co/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25
+Pinned revision: 68818b2313fe77bd06f6a7c5068ff3ef59d02b8a
+
+The separate Silero VAD model retains its own license (VAD_LICENSE).

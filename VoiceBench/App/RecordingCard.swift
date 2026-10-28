@@ -16,13 +16,13 @@ struct RecordingCard: View {
             header
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(EngineID.allCases) { engine in
-                    if engine == .apple { Divider() }
+                    if engine != .senseVoice { Divider() }
                     if let run = runs.first(where: { $0.engine == engine }) {
                         RunTranscriptView(run: run)
                     } else {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(engine.title).font(.subheadline.weight(.semibold))
-                            Text(runs.isEmpty ? "尚未识别" : "本轮未运行")
+                            Text(engine == .qwen && model.qwenModelReceipt == nil ? "尚未配置模型，可在设置中载入" : (runs.isEmpty ? "尚未识别" : "本轮未运行"))
                                 .font(.subheadline).foregroundStyle(.secondary)
                         }
                     }
@@ -116,11 +116,11 @@ struct RecordingCard: View {
             }
             .buttonStyle(.plain).disabled(!model.idle)
             .accessibilityLabel("\(model.playingID == recording.id ? "停止播放" : "播放") \(recording.name)")
-            Button { model.runBoth(recordingID: recording.id) } label: {
+            Button { model.runComparison(recordingID: recording.id) } label: {
                 Text(recognizing ? "识别中…" : "识别").font(.subheadline.weight(.medium)).padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent).disabled(!model.idle)
-            .accessibilityLabel("依次识别 \(recording.name) 的两套引擎结果")
+            .accessibilityLabel("依次识别 \(recording.name) 的 \(model.comparisonEngines.count) 套引擎结果")
             .accessibilityIdentifier("recognition.run.\(recording.id)")
         }
     }
