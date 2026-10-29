@@ -1,13 +1,13 @@
 # VoiceBench · 语音对比
 
-简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8** 与 **Fun-ASR-MLT-Nano INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.6.0**。
+简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8**、**Fun-ASR-MLT-Nano INT8** 与 **Whisper large-v3-turbo INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.7.0**。
 
 当前交付包含 Swift 源码、生成的 Xcode 工程、锁定依赖、模型准备脚本、手动触发的 GitHub Actions 工作流和本地逻辑校验。云端仓库为 [unclehun/voice_bench](https://github.com/unclehun/voice_bench)，操作步骤见 [GitHub 云端编译](docs/GITHUB_ACTIONS.md)。**本地验证尚不包含 iOS SDK 编译或 iPhone 测试，实际云端构建状态以 Actions 为准。**验证边界见 [验证记录](docs/VALIDATION.md)。
 
 ## 功能
 
 - 录音、M4A / WAV 导入、播放、录音选择和删除。
-- 四套引擎各自识别同一份原始录音；Apple 不再使用外部语言检测。载入 Qwen / Fun-ASR 后，每轮加入已配置的引擎，最多依次运行四套，详情页可单独测试任一引擎。
+- 五套引擎各自识别同一份原始录音；Apple 不再使用外部语言检测。载入 Qwen / Fun-ASR / Whisper Turbo 后，每轮加入已配置的引擎，最多依次运行五套，详情页可单独测试任一引擎。
 - 同一源文件的 SHA-256、原始文本、分段时间、初始化时间、转写时间及 RTF。
 - 模型文件校验、Apple 默认识别语言设置及对应资源准备、可用性检查、错误和取消状态。
 - 原文及完成片段落盘，重启后把未完成任务标记为中断。
@@ -18,10 +18,10 @@
 主界面按录音显示卡片，左上角 **+** 打开录音浮层，右上角 **设置** 进入模型配置与数据管理。无需登录 App 账号或配置服务端。
 
 - 录音浮层显示计时器：红色圆形开始录音，绿色方形停止并保存，两种按钮互斥。停止后自动返回列表，新录音按“录音 1、录音 2…”命名；浮层也保留音频文件导入入口。
-- 卡片点击 **识别**，依次运行 SenseVoice、Apple，再运行已载入的 Qwen、Fun-ASR，展示本轮结果；未载入这两套时继续原有双引擎流程。每轮结果归为一个 batch，新一轮排队时不会拼上旧一轮的文字或纠错；历史记录在 **详情** 中保留。
+- 卡片点击 **识别**，依次运行 SenseVoice、Apple，再运行已载入的 Qwen、Fun-ASR、Whisper Turbo，展示本轮结果；未载入这些可选模型时继续原有双引擎流程。每轮结果归为一个 batch，新一轮排队时不会拼上旧一轮的文字或纠错；历史记录在 **详情** 中保留。
 - 点击卡片 **开始纠错**，依次处理本轮成功识别的非空文本；每份文字同时交给 Apple 本地与 DeepSeek 公网模型。结果区域自动展开，按识别引擎及纠错模型分别显示文字、状态、耗时和错误。整行 **查看纠错结果与状态 / 收起纠错结果** 只控制展示，重新执行放在独立的 **更多操作 → 重新运行两路纠错** 菜单中。
 - 卡片可播放 / 停止音频、删除整条录音。删除会清理该录音的音频、全部历史识别与纠错、参考稿、背景和内部临时工作文件，保留其他录音与共享模型。
-- **设置** 集中管理 SenseVoice / Qwen / Fun-ASR 默认目录及手工导入、Apple 默认识别语言与资源、纠错可用性、DeepSeek API Key 和全部数据清理，可通过系统返回按钮回主界面。
+- **设置** 集中管理 SenseVoice / Qwen / Fun-ASR / Whisper Turbo 默认目录及手工导入、Apple 默认识别语言与资源、纠错可用性、DeepSeek API Key 和全部数据清理，可通过系统返回按钮回主界面。
 - **详情** 保留参考稿、纠错背景、CER、JSON / Markdown 导出、历史运行明细和单引擎调试入口。
 
 ### DeepSeek 公网纠错
@@ -51,6 +51,7 @@ Apple Speech 重复报 `Foundation._GenericObjCError Code=0` 时，新版采用�
 - `Vendor/`：已下载、验证 SHA-256 的 iOS 静态 XCFramework（不提交 Git）。
 - `.tools/xcodegen/`：项目内的 XcodeGen 2.44.1，不是 Xcode。
 - `Models/FunASR_MLT_Nano_INT8/`：完整 MLT 版 ONNX INT8、tokenizer、VAD、许可证及 manifest，约 1.01 GB（不提交 Git，也不进入 IPA）。
+- `Models/WhisperLargeV3Turbo_INT8/`：完整 Turbo 多语言 ONNX INT8、词表、VAD、许可证和 manifest，约 1.04 GB（不提交 Git，也不进入 IPA）。
 - `Models/Qwen3ASR_0_6B_INT8/`：完整 Qwen、tokenizer、VAD、许可证和 manifest，约 988 MB（不提交 Git，也不进入 IPA）。
 - `Models/WhisperTiny_INT8/`：旧流程准备的语言检测模型（约 103 MB，不提交 Git）；0.6.0 不再载入或调用，新设备不需要准备。
 - `Models/VoiceBenchModels/`：准备好的手机模型导入目录，含权重、tokens、VAD、许可证和 manifest（不提交 Git）。
@@ -175,7 +176,7 @@ python3 scripts/prepare_qwen_models.py --verify-only
 
 把完整文件夹传到 **文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_INT8**，保留 `tokenizer` 子目录。打开 App 或点设置中的“检查状态”自动载入；也可“从默认目录载入 Qwen3-ASR”或“选择其他 Qwen3-ASR 目录…”。文件树、空间要求和真机验收见 [Qwen 接入说明](docs/QWEN_ASR.md)。
 
-Qwen 独立直接转写多语言，不使用 Apple 的语言资源。载入后卡片“识别”自动加入第三套；详情 → 调试运行 → “仅 Qwen3-ASR”可独立测试。默认语言选项只影响 Apple，其他三套引擎仍使用各自模型的自动多语能力。
+Qwen 独立直接转写多语言，不使用 Apple 的语言资源。载入后卡片“识别”自动加入第三套；详情 → 调试运行 → “仅 Qwen3-ASR”可独立测试。默认语言选项只影响 Apple，其他四套引擎仍使用各自模型的自动多语能力。
 
 ### Fun-ASR-MLT-Nano INT8（第四套识别引擎）
 
@@ -223,3 +224,17 @@ python3 scripts/prepare_funasr_models.py --verify-only
 - [DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)
 - [SenseVoice 模型](https://k2-fsa.github.io/sherpa/onnx/sense-voice/pretrained.html)
 - [第三方许可](THIRD_PARTY_NOTICES.md)
+
+
+### Whisper large-v3-turbo INT8（第五套识别引擎，0.7.0）
+
+模型已下载到 `Models/WhisperLargeV3Turbo_INT8`，四份必需文件共 **1,037,257,645 字节**。准备与复核：
+
+```sh
+python3 scripts/prepare_whisper_turbo_models.py
+python3 scripts/prepare_whisper_turbo_models.py --verify-only
+```
+
+将完整目录放在 **文件 → 在我的 iPhone → 语音对比 → WhisperLargeV3Turbo_INT8**。与 Qwen 一样，支持启动 / 检查状态自动载入、从默认目录重新载入、文件选择器导入、SHA-256 校验、重启复用和清除全部。载入后卡片识别加入第五套；详情 → 调试运行 → **仅 Whisper large-v3-turbo** 可独立测试。
+
+沿用 Qwen 的 CPU 两线程、16kHz 单声道和 20 秒 Silero VAD 分段，使用 `transcribe` 和模型内部自动语言，无外部语言路由；Apple 默认语言仅影响 Apple。输入窗口和原生输出上限受保护，接近上限先补静音重试一次；仍疑似截断时明确失败并保留已完成片段。完整参数、模型来源和验收见 [Whisper 接入说明](docs/WHISPER_TURBO.md)。

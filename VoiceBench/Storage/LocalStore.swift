@@ -22,6 +22,9 @@ actor LocalStore {
     let funASRModels: URL
     let defaultFunASRModelDirectory: URL
     let funASRModelManifestURL: URL?
+    let whisperTurboModels: URL
+    let defaultWhisperTurboModelDirectory: URL
+    let whisperTurboModelManifestURL: URL?
     let defaultLanguageModelDirectory: URL
     let audio: URL
     /// This is `Documents/SenseVoiceSmall_INT8`, visible in Files as
@@ -36,12 +39,13 @@ actor LocalStore {
     private let legacyTemporaryDirectory: URL?
     init(baseURL: URL? = nil, modelManifestURL: URL? = nil, languageModelManifestURL: URL? = nil, temporaryFiles: AppTemporaryFiles? = nil,
          documentsURL: URL? = nil, legacyTemporaryDirectory: URL? = nil, qwenModelManifestURL: URL? = nil,
-         funASRModelManifestURL: URL? = nil) throws {
+         funASRModelManifestURL: URL? = nil, whisperTurboModelManifestURL: URL? = nil) throws {
         let manager = FileManager.default
         self.modelManifestURL = modelManifestURL ?? Bundle.main.url(forResource: "model-manifest", withExtension: "json")
         self.languageModelManifestURL = languageModelManifestURL ?? Bundle.main.url(forResource: "language-model-manifest", withExtension: "json")
         self.qwenModelManifestURL = qwenModelManifestURL ?? Bundle.main.url(forResource: "qwen-model-manifest", withExtension: "json")
         self.funASRModelManifestURL = funASRModelManifestURL ?? Bundle.main.url(forResource: "funasr-mlt-model-manifest", withExtension: "json")
+        self.whisperTurboModelManifestURL = whisperTurboModelManifestURL ?? Bundle.main.url(forResource: "whisper-turbo-model-manifest", withExtension: "json")
         #if os(iOS)
         self.legacyTemporaryDirectory = legacyTemporaryDirectory ?? (baseURL == nil ? manager.temporaryDirectory : nil)
         #else
@@ -64,12 +68,14 @@ actor LocalStore {
         defaultQwenModelDirectory = documents.appendingPathComponent(QwenASRModel.defaultDirectoryName, isDirectory: true)
         funASRModels = root.appendingPathComponent("FunASRModels", isDirectory: true)
         defaultFunASRModelDirectory = documents.appendingPathComponent(FunASRModel.defaultDirectoryName, isDirectory: true)
+        whisperTurboModels = root.appendingPathComponent("WhisperTurboModels", isDirectory: true)
+        defaultWhisperTurboModelDirectory = documents.appendingPathComponent(WhisperTurboModel.defaultDirectoryName, isDirectory: true)
         models = root.appendingPathComponent("Models", isDirectory: true)
         audio = root.appendingPathComponent("Audio", isDirectory: true)
         records = root.appendingPathComponent("Records", isDirectory: true)
         self.temporaryFiles = temporaryFiles ?? baseURL.map { AppTemporaryFiles(root: $0.appendingPathComponent("Temporary")) } ?? .live
         try Self.prepareDirectories(root: root)
-        for var sourceURL in [defaultModelDirectory, defaultLanguageModelDirectory, defaultQwenModelDirectory, defaultFunASRModelDirectory] {
+        for var sourceURL in [defaultModelDirectory, defaultLanguageModelDirectory, defaultQwenModelDirectory, defaultFunASRModelDirectory, defaultWhisperTurboModelDirectory] {
             try manager.createDirectory(at: sourceURL, withIntermediateDirectories: true)
             var sourceValues = URLResourceValues(); sourceValues.isExcludedFromBackup = true
             try sourceURL.setResourceValues(sourceValues)
@@ -89,7 +95,7 @@ actor LocalStore {
         var values = URLResourceValues(); values.isExcludedFromBackup = true
         // This demo deliberately does not put recordings/results/models into future device backups.
         try dataURL.setResourceValues(values)
-        for name in ["Models", "LanguageIDModels", "QwenModels", "FunASRModels", "Audio", "Records"] {
+        for name in ["Models", "LanguageIDModels", "QwenModels", "FunASRModels", "WhisperTurboModels", "Audio", "Records"] {
             var url = root.appendingPathComponent(name, isDirectory: true)
             try manager.createDirectory(at: url, withIntermediateDirectories: true)
             try url.setResourceValues(values)
@@ -284,8 +290,8 @@ actor LocalStore {
         }
         // These targets are independent on iOS. Attempt all of them even if one deletion fails.
         for (label, url) in [("录音、结果及内部模型", root), ("SenseVoice 默认目录", defaultModelDirectory),
-                             ("Whisper 默认目录", defaultLanguageModelDirectory), ("Qwen 默认目录", defaultQwenModelDirectory),
-                             ("Fun-ASR 默认目录", defaultFunASRModelDirectory)] {
+                             ("Whisper Tiny 历史目录", defaultLanguageModelDirectory), ("Qwen 默认目录", defaultQwenModelDirectory),
+                             ("Fun-ASR 默认目录", defaultFunASRModelDirectory), ("Whisper Turbo 默认目录", defaultWhisperTurboModelDirectory)] {
             attempt(label) { try AppFileSystem.removeIfPresent(url) }
         }
         attempt("临时工作文件") { try temporaryFiles.reset() }
@@ -293,7 +299,7 @@ actor LocalStore {
             attempt("旧版临时文件") { try AppTemporaryFiles.removeLegacyFiles(in: legacy) }
         }
         attempt("重建内部空目录") { try Self.prepareDirectories(root: root) }
-        for var source in [defaultModelDirectory, defaultLanguageModelDirectory, defaultQwenModelDirectory, defaultFunASRModelDirectory] {
+        for var source in [defaultModelDirectory, defaultLanguageModelDirectory, defaultQwenModelDirectory, defaultFunASRModelDirectory, defaultWhisperTurboModelDirectory] {
             attempt("重建 \(source.lastPathComponent) 空目录") {
                 try manager.createDirectory(at: source, withIntermediateDirectories: true)
                 var values = URLResourceValues(); values.isExcludedFromBackup = true
@@ -302,7 +308,7 @@ actor LocalStore {
         }
         // Success means every owned directory is empty, including abandoned imports/unknown leftovers.
         attempt("核对清理结果") {
-            let expected = Set(["Audio", "Records", "Models", "LanguageIDModels", "QwenModels", "FunASRModels"])
+            let expected = Set(["Audio", "Records", "Models", "LanguageIDModels", "QwenModels", "FunASRModels", "WhisperTurboModels"])
             var allowed = expected
             // Alternate storage roots may place Documents/Temporary inside this directory.
             for url in [defaultModelDirectory.deletingLastPathComponent(), temporaryFiles.root] {
@@ -312,8 +318,8 @@ actor LocalStore {
             guard expected.isSubset(of: remaining), remaining.isSubset(of: allowed) else {
                 throw BenchError("内部目录仍有残留或未能正确重建。")
             }
-            for url in [audio, records, models, languageModels, qwenModels, funASRModels, defaultModelDirectory,
-                        defaultLanguageModelDirectory, defaultQwenModelDirectory, defaultFunASRModelDirectory, temporaryFiles.root] {
+            for url in [audio, records, models, languageModels, qwenModels, funASRModels, whisperTurboModels, defaultModelDirectory,
+                        defaultLanguageModelDirectory, defaultQwenModelDirectory, defaultFunASRModelDirectory, defaultWhisperTurboModelDirectory, temporaryFiles.root] {
                 guard try manager.contentsOfDirectory(atPath: url.path).isEmpty else {
                     throw BenchError("\(url.lastPathComponent) 仍有未删除文件。")
                 }

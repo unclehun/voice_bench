@@ -1,5 +1,16 @@
 # 验证记录
 
+## 2026-10-29：Whisper large-v3-turbo 第五套引擎（0.7.0）
+
+- 已下载固定 revision `2ca6ff69fc878651b770880507669577ac41c2ff` 的多语言 Turbo ONNX INT8 到 `Models/WhisperLargeV3Turbo_INT8`。四份必需文件共 **1,037,257,645 字节**，上游 LFS / Git blob 核对及 SHA-256 复验通过；许可证、来源与 manifest 随目录保留。权重不进 Git / IPA。
+- 沿用 Qwen 的默认 / 手动导入、校验及原子替换、重启复用和清理生命周期。卡片加入第五套、详情支持独立运行；报告、评测与两路纠错按统一引擎列表工作。Core 历史 Codable 及前四套结果仍兼容。Apple、Qwen、SenseVoice、Fun-ASR 和共享音频实现未修改。
+- 转写采用同一原始录音、16kHz 单声道、20 秒 Silero VAD、200ms 边缘保护、CPU 两线程及 sherpa-onnx 1.13.8 / ONNX Runtime 1.28.2。Whisper 专用参数为 128 维特征、`task=transcribe`、模型内部自动语言、`greedy_search`、300 帧内部尾部补齐。不依赖 Apple 默认语言或外部语言路由。
+- 实际推理复现 sherpa 的按时长限制输出（约每秒 6 token）。短样例初次生成 35 token 达到上限；改为丢弃候选、末尾补静音至 29 秒重试一次，成功返回后才发布。原始 VAD 区间和展示时间不变。仍接近上限则明确失败，诊断记录重试数、补齐量及阈值，不冒充完整结果。
+- **34,487 项核心断言、50 项纠错检查、38 项配置文件检查**通过；完整 `audio-checks` 验证五类模型（含历史 Tiny）的真实导入、SHA-256、替换隔离、重启、备份属性、删除录音、全部清理及外部原件保留。首次沙箱执行无法访问 macOS 备份属性服务；获准在沙箱外重跑后完整通过，没有跳过备份断言。
+- 使用同版本 macOS 原生库运行共享 Swift Whisper 引擎：5.592 秒中文样例、6.230 秒预算重试样例、21.5 秒拼接压力音频、10.846 秒受控中英合成语音均完成。另以 32.539 秒受控混读长音频验证，6 个片段完整保留 3 轮中英内容，最后一段结束于原始时长，未受 30 秒窗口截掉后续。受控混读保留两种语言，但仍有误识，不能据此宣称准确率优于现有模型。预取消、实际解码后取消、纯静音与派生音频清理通过。报告保存在 `.build-local/whisper-turbo-*.json`，不进入源码包。
+- 已生成 Xcode 工程并验证资源引用、全部 App Swift frontend parse、真实 C API 编译、plist / 脚本 / JSON 检查。**尚未进行 0.7.0 的 iOS SDK 编译、GitHub Actions 或 iPhone 测试**；Mac 推理不代表手机准确率、速度或内存结论。验收步骤见 [Whisper 接入说明](WHISPER_TURBO.md)。
+
+
 ## 2026-10-29：Apple 整段识别与默认语言（0.6.0）
 
 - 移除 Apple 前置 Whisper 检测 / 分段路由、启动自动导入、就绪依赖、设置页模型入口及检测引擎实现。Apple 只转换系统要求的音频格式，在一个 analyzer 会话中输入完整录音；保留有界 PCM 拉取、真实 EOF、取消、结果流消费、临时文件清理与错误链。SenseVoice、Qwen、Fun-ASR 引擎未修改。

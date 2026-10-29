@@ -28,6 +28,8 @@ final class BenchViewModel: ObservableObject {
     @Published var qwenModelDetail = "正在检查 Qwen 默认目录…"
     @Published var funASRModelReceipt: ModelReceipt?
     @Published var funASRModelDetail = "正在检查 Fun-ASR 默认目录…"
+    @Published var whisperTurboModelReceipt: ModelReceipt?
+    @Published var whisperTurboModelDetail = "正在检查 Whisper Turbo 默认目录…"
     @Published var speech = SpeechCapability(available: false, installed: false, detail: "正在检查…")
     @Published var correctionUnavailable: String? = "正在检查…"
     @Published var deepSeekKeyConfigured = false
@@ -40,6 +42,7 @@ final class BenchViewModel: ObservableObject {
     private let apple = AppleSpeechEngine()
     private let qwen = QwenSpeechEngine()
     private let funASR = FunASRSpeechEngine()
+    private let whisperTurbo = WhisperTurboSpeechEngine()
     private let corrector = AppleTextCorrector()
     private let deepSeekCorrector = DeepSeekTextCorrector()
     private let credentials = DeepSeekCredentialStore()
@@ -63,6 +66,7 @@ final class BenchViewModel: ObservableObject {
     var bothReady: Bool { modelReceipt != nil && appleReady }
     var comparisonEngines: [EngineID] {
         [.senseVoice, .apple] + (qwenModelReceipt == nil ? [] : [.qwen]) + (funASRModelReceipt == nil ? [] : [.funASR])
+            + (whisperTurboModelReceipt == nil ? [] : [.whisperTurbo])
     }
 
     init() {
@@ -120,6 +124,18 @@ final class BenchViewModel: ObservableObject {
             funASRModelDetail = "模型已就绪；直接进行本地多语识别，无需选择语言。"
         } else if funASRModelDetail == "正在检查 Fun-ASR 默认目录…" {
             funASRModelDetail = "默认目录为空或尚未传完；也可手动选择完整 Fun-ASR 模型目录。"
+        }
+        do {
+            if let receipt = try await store?.importDefaultWhisperTurboModelsIfComplete() {
+                whisperTurboModelReceipt = receipt
+                message = "已从默认目录 WhisperLargeV3Turbo_INT8 载入模型。"
+            }
+        } catch { whisperTurboModelDetail = "Whisper Turbo 默认目录校验失败：\(error.localizedDescription)" }
+        whisperTurboModelReceipt = await store?.whisperTurboModelReceipt()
+        if whisperTurboModelReceipt != nil {
+            whisperTurboModelDetail = "模型已就绪；本地多语转写，模型内部自动识别语言。"
+        } else if whisperTurboModelDetail == "正在检查 Whisper Turbo 默认目录…" {
+            whisperTurboModelDetail = "默认目录为空或尚未传完；也可手动选择完整 Whisper Turbo 模型目录。"
         }
     }
 
@@ -244,7 +260,7 @@ final class BenchViewModel: ObservableObject {
                 if let source { qwenModelReceipt = try await store.importQwenModels(source) }
                 else { qwenModelReceipt = try await store.importDefaultQwenModels() }
                 qwenModelDetail = "已保存到 App 内部；下次启动无需再次选择目录。"
-                message = "Qwen3-ASR 已就绪，可进行三套引擎对比或在详情中单独运行。"
+                message = "Qwen3-ASR 已就绪，可进行多套引擎对比或在详情中单独运行。"
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -259,6 +275,20 @@ final class BenchViewModel: ObservableObject {
                 else { funASRModelReceipt = try await store.importDefaultFunASRModels() }
                 funASRModelDetail = "已保存到 App 内部；下次启动无需再次选择目录。"
                 message = "Fun-ASR-MLT-Nano 已就绪，可进行多套引擎对比或在详情中单独运行。"
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+
+    func importWhisperTurboModels(_ source: URL? = nil) {
+        guard idle, let store else { return }
+        begin("正在复制并校验 Whisper large-v3-turbo 模型（约 1.04 GB）…")
+        task = Task {
+            defer { finish() }
+            do {
+                if let source { whisperTurboModelReceipt = try await store.importWhisperTurboModels(source) }
+                else { whisperTurboModelReceipt = try await store.importDefaultWhisperTurboModels() }
+                whisperTurboModelDetail = "已保存到 App 内部；下次启动无需再次选择目录。"
+                message = "Whisper large-v3-turbo 已就绪，可进行多套引擎对比或在详情中单独运行。"
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -381,12 +411,14 @@ final class BenchViewModel: ObservableObject {
         let appleSettings = appleSpeechSettings
         let qwenReceipt = qwenModelReceipt
         let funASRReceipt = funASRModelReceipt
+        let whisperTurboReceipt = whisperTurboModelReceipt
         task = Task {
             defer { finish() }
             let source = await store.audioURL(recording)
             let models = await store.models
             let qwenModels = await store.qwenModels
             let funASRModels = await store.funASRModels
+            let whisperTurboModels = await store.whisperTurboModels
             let workFiles = await store.workFiles(recordingID: recordingID)
             let temporaryFiles = await store.temporaryFiles
             defer {
@@ -423,6 +455,11 @@ final class BenchViewModel: ObservableObject {
                     run.configuration.merge(["funasr_mlt_language_strategy": "model_native_auto", "offline": "true",
                         "provider": "cpu", "threads": "2", "sample_rate": "16000",
                         "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2"]) { _, new in new }
+                } else if engine == .whisperTurbo {
+                    run.configuration.merge(whisperTurboReceipt?.files.mapKeys { "whisper_turbo_model_sha256_" + $0 } ?? [:]) { _, new in new }
+                    run.configuration.merge(["whisper_turbo_language_strategy": "model_native_auto",
+                        "whisper_turbo_task": "transcribe", "offline": "true", "provider": "cpu", "threads": "2",
+                        "sample_rate": "16000", "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2"]) { _, new in new }
                 } else {
                     run.configuration.merge(appleSettings.runConfiguration) { _, new in new }
                 }
@@ -446,6 +483,10 @@ final class BenchViewModel: ObservableObject {
                         guard funASRReceipt != nil else { throw BenchError("请先导入完整的 FunASR_MLT_Nano_INT8 模型目录。") }
                         output = try await funASR.transcribe(source: source, models: funASRModels, runID: runID,
                             cancellation: flag, temporaryFiles: workFiles, progress: progress)
+                    } else if engine == .whisperTurbo {
+                        guard whisperTurboReceipt != nil else { throw BenchError("请先导入完整的 WhisperLargeV3Turbo_INT8 模型目录。") }
+                        output = try await whisperTurbo.transcribe(source: source, models: whisperTurboModels, runID: runID,
+                            cancellation: flag, temporaryFiles: workFiles, progress: progress)
                     } else {
                         message = "Apple 正在直接识别整段录音（\(AppleSpeechSettings.displayName(appleSettings.localeIdentifier))）…"
                         output = try await apple.transcribe(source: source, localeIdentifier: appleSettings.localeIdentifier,
@@ -466,6 +507,9 @@ final class BenchViewModel: ObservableObject {
                         run.configuration.merge(failure.configuration) { _, new in new }
                     }
                     if let failure = error as? FunASRSpeechFailure {
+                        run.configuration.merge(failure.configuration) { _, new in new }
+                    }
+                    if let failure = error as? WhisperTurboSpeechFailure {
                         run.configuration.merge(failure.configuration) { _, new in new }
                     }
                     run.configuration["execution_state"] = "finished"
@@ -497,9 +541,9 @@ final class BenchViewModel: ObservableObject {
     }
 
     func runComparison(recordingID: UUID) {
-        guard qwenModelReceipt != nil || funASRModelReceipt != nil else { runBoth(recordingID: recordingID); return }
+        guard qwenModelReceipt != nil || funASRModelReceipt != nil || whisperTurboModelReceipt != nil else { runBoth(recordingID: recordingID); return }
         guard idle else { return }
-        guard bothReady else { error = "请先到设置完成 SenseVoice 模型和苹果默认语言资源配置；Qwen 和 Fun-ASR 也可在详情中单独运行。"; return }
+        guard bothReady else { error = "请先到设置完成 SenseVoice 模型和苹果默认语言资源配置；其他模型也可在详情中单独运行。"; return }
         run(comparisonEngines, recordingID: recordingID)
     }
 
@@ -599,11 +643,12 @@ final class BenchViewModel: ObservableObject {
             do {
                 try await store.removeAllData()
                 recordings = []; selectedID = nil; evaluations = [:]
-                shareFiles = []; modelReceipt = nil; qwenModelReceipt = nil; funASRModelReceipt = nil; recordingURL = nil
+                shareFiles = []; modelReceipt = nil; qwenModelReceipt = nil; funASRModelReceipt = nil; whisperTurboModelReceipt = nil; recordingURL = nil
                 appleSpeechSettings = AppleSpeechSettings()
                 modelDetail = "默认目录已清空；可重新传入 SenseVoiceSmall_INT8。"
                 qwenModelDetail = "默认目录已清空；可重新传入 Qwen3ASR_0_6B_INT8。"
                 funASRModelDetail = "默认目录已清空；可重新传入 FunASR_MLT_Nano_INT8。"
+                whisperTurboModelDetail = "默认目录已清空；可重新传入 WhisperLargeV3Turbo_INT8。"
                 await apple.releaseReservations()
                 await refresh()
                 message = "本机数据和 API Key 配置已清除，苹果语音资源预留已释放。共享系统模型由 iOS 管理。"
@@ -616,9 +661,11 @@ final class BenchViewModel: ObservableObject {
                 modelReceipt = await store.modelReceipt()
                 qwenModelReceipt = await store.qwenModelReceipt()
                 funASRModelReceipt = await store.funASRModelReceipt()
+                whisperTurboModelReceipt = await store.whisperTurboModelReceipt()
                 if modelReceipt == nil { modelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 if qwenModelReceipt == nil { qwenModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 if funASRModelReceipt == nil { funASRModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
+                if whisperTurboModelReceipt == nil { whisperTurboModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 self.error = (["清理未全部完成：\(error.localizedDescription)。可重试。", keyRemovalError].compactMap { $0 }).joined(separator: " ")
             }
         }

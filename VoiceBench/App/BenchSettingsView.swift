@@ -7,6 +7,7 @@ struct BenchSettingsView: View {
     @State private var sensePicker = false
     @State private var qwenPicker = false
     @State private var funASRPicker = false
+    @State private var whisperTurboPicker = false
     @State private var confirmClear = false
     @State private var deepSeekAPIKey = ""
 
@@ -43,7 +44,7 @@ struct BenchSettingsView: View {
                 Button("选择其他 Qwen3-ASR 目录…", systemImage: "folder") { qwenPicker = true }.disabled(!model.idle)
                 Text("文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_INT8。请复制完整目录并保留 tokenizer 子目录。")
                     .font(.caption).foregroundStyle(.secondary)
-                Text("约 1 GB；自动进行本地多语识别。配置完成后主界面识别会增加第三套引擎。")
+                Text("约 1 GB；自动进行本地多语识别。配置完成后主界面识别会加入 Qwen 引擎。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
@@ -53,6 +54,15 @@ struct BenchSettingsView: View {
                 Text("文件 → 在我的 iPhone → 语音对比 → FunASR_MLT_Nano_INT8。请复制完整目录并保留 tokenizer 子目录。")
                     .font(.caption).foregroundStyle(.secondary)
                 Text("约 1 GB；自动进行本地多语识别。配置完成后主界面识别会增加 Fun-ASR 引擎。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Whisper large-v3-turbo") {
+                status("Whisper large-v3-turbo INT8", detail: model.whisperTurboModelDetail, ready: model.whisperTurboModelReceipt != nil)
+                Button("从默认目录载入 Whisper Turbo") { model.importWhisperTurboModels() }.disabled(!model.idle)
+                Button("选择其他 Whisper Turbo 目录…", systemImage: "folder") { whisperTurboPicker = true }.disabled(!model.idle)
+                Text("文件 → 在我的 iPhone → 语音对比 → WhisperLargeV3Turbo_INT8。请复制完整目录。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("约 1.04 GB；与 Qwen 一样在本机分段转写，模型内部自动识别语言。配置完成后主界面识别会加入 Whisper 引擎。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("DeepSeek 公网纠错") {
@@ -102,6 +112,12 @@ struct BenchSettingsView: View {
         .fileImporter(isPresented: $funASRPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls): if let url = urls.first { model.importFunASRModels(url) }
+            case .failure(let error): model.error = error.localizedDescription
+            }
+        }
+        .fileImporter(isPresented: $whisperTurboPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let urls): if let url = urls.first { model.importWhisperTurboModels(url) }
             case .failure(let error): model.error = error.localizedDescription
             }
         }

@@ -24,8 +24,10 @@
 		5BE6009607BDFBAA81A72C1C /* FunASRAudioReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 659C0AC0499FCD75A6D5C5E7 /* FunASRAudioReader.swift */; };
 		5E3DA335617DE657D1F8B47E /* DeepSeekCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C83DC32CFC14501D7C111AE4 /* DeepSeekCredentialStore.swift */; };
 		5EB6F6099C51A9FEB46511CF /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70B21BAD8AD25E04275023BB /* Accelerate.framework */; };
+		6C0FD54A3138664AE9F8D9C4 /* LocalStore+WhisperTurbo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C673002FCF1D1A0B71B20326 /* LocalStore+WhisperTurbo.swift */; };
 		76BCB465AFC67C8B0BC26C17 /* FoundationModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 68471BF46FAE67A11C7720B9 /* FoundationModels.framework */; };
 		78F921D7A8E29F38EFA96EFB /* QwenSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */; };
+		7AC440FCC95007AAE3C3B282 /* WhisperTurboSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 404A8C6B881AF39C6F91AC60 /* WhisperTurboSpeechEngine.swift */; };
 		978A4FB41683E35089FCA6D6 /* LocalStore+FunASR.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BACE6BFEA2B24938222D048 /* LocalStore+FunASR.swift */; };
 		9FCE048E15914717C4534F9A /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 41369DDD178EF59E2F87F316 /* CoreML.framework */; };
 		A37D2FD34B5CD66E20E5E618 /* model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = A7148698F0BFFF89EB1F680E /* model-manifest.json */; };
@@ -35,6 +37,7 @@
 		AC149280006A93A7413674B4 /* LocalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117193E8BDCF764D0FDDB300 /* LocalStore.swift */; };
 		AC7C72EB89CA290847180BE6 /* VoiceBenchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B3C2675E1EE397E670D2A0F /* VoiceBenchApp.swift */; };
 		CCFDA7F13B63D0AF604704E4 /* BenchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4346D668EEBB9F2F30BC9C53 /* BenchView.swift */; };
+		DB840EE5BBE5FD0499AF55E1 /* whisper-turbo-model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 82C146CFD5181BEAFD415E33 /* whisper-turbo-model-manifest.json */; };
 		E55E8D6136D171657BD27F06 /* BenchSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA91BB880360937136759484 /* BenchSettingsView.swift */; };
 		E6A77D00A88C0E4F9F2C8030 /* RecordingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941E43A1051BC579DE6DE723 /* RecordingSheet.swift */; };
 		EC36000099FEAFD4823BA8A2 /* Speech.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3B6F58AC6D6462F8A28F55D /* Speech.framework */; };
@@ -53,6 +56,7 @@
 		117193E8BDCF764D0FDDB300 /* LocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStore.swift; sourceTree = "<group>"; };
 		1B2BEECEB3C7748D05E45EFD /* funasr-mlt-model-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "funasr-mlt-model-manifest.json"; sourceTree = "<group>"; };
 		2C9F0EA5ED330A9C89B8B80C /* AppTemporaryFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemporaryFiles.swift; sourceTree = "<group>"; };
+		404A8C6B881AF39C6F91AC60 /* WhisperTurboSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTurboSpeechEngine.swift; sourceTree = "<group>"; };
 		41369DDD178EF59E2F87F316 /* CoreML.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreML.framework; path = System/Library/Frameworks/CoreML.framework; sourceTree = SDKROOT; };
 		41A96F5755C7DD5B190155F7 /* AudioFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFiles.swift; sourceTree = "<group>"; };
 		4346D668EEBB9F2F30BC9C53 /* BenchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchView.swift; sourceTree = "<group>"; };
@@ -71,6 +75,7 @@
 		733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechEngine.swift; sourceTree = "<group>"; };
 		753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenseVoiceEngine.swift; sourceTree = "<group>"; };
 		76A69D53F4B7C7A2E60AA21D /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "Vendor/sherpa-onnx.xcframework"; sourceTree = "<group>"; };
+		82C146CFD5181BEAFD415E33 /* whisper-turbo-model-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "whisper-turbo-model-manifest.json"; sourceTree = "<group>"; };
 		8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenSpeechEngine.swift; sourceTree = "<group>"; };
 		8EC970CCAF6CCDA56E245FE5 /* PCMFileReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMFileReader.swift; sourceTree = "<group>"; };
 		941E43A1051BC579DE6DE723 /* RecordingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSheet.swift; sourceTree = "<group>"; };
@@ -82,6 +87,7 @@
 		ADC9063F84D20236DEF2700A /* AppleSpeechSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechSettingsStore.swift; sourceTree = "<group>"; };
 		BE1640A62FA32CB4481B3771 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BFAC48F57F95795D0A41AAFF /* BenchComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchComponents.swift; sourceTree = "<group>"; };
+		C673002FCF1D1A0B71B20326 /* LocalStore+WhisperTurbo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalStore+WhisperTurbo.swift"; sourceTree = "<group>"; };
 		C8345A3EE62560CE9473FA30 /* onnxruntime.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = Vendor/onnxruntime.xcframework; sourceTree = "<group>"; };
 		C83DC32CFC14501D7C111AE4 /* DeepSeekCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekCredentialStore.swift; sourceTree = "<group>"; };
 		CFF01BC70CB21A73FFCF065A /* FunASRSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FunASRSpeechEngine.swift; sourceTree = "<group>"; };
@@ -132,6 +138,7 @@
 				CFF01BC70CB21A73FFCF065A /* FunASRSpeechEngine.swift */,
 				8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */,
 				753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */,
+				404A8C6B881AF39C6F91AC60 /* WhisperTurboSpeechEngine.swift */,
 			);
 			path = Engines;
 			sourceTree = "<group>";
@@ -218,6 +225,7 @@
 				1B2BEECEB3C7748D05E45EFD /* funasr-mlt-model-manifest.json */,
 				A7148698F0BFFF89EB1F680E /* model-manifest.json */,
 				07109D7581A7BF0C2CADC413 /* qwen-model-manifest.json */,
+				82C146CFD5181BEAFD415E33 /* whisper-turbo-model-manifest.json */,
 			);
 			path = config;
 			sourceTree = "<group>";
@@ -231,6 +239,7 @@
 				117193E8BDCF764D0FDDB300 /* LocalStore.swift */,
 				5BACE6BFEA2B24938222D048 /* LocalStore+FunASR.swift */,
 				6111F43FCF2190F06602E303 /* LocalStore+Qwen.swift */,
+				C673002FCF1D1A0B71B20326 /* LocalStore+WhisperTurbo.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -300,6 +309,7 @@
 				5926C5209FA482E20187932E /* licenses in Resources */,
 				A37D2FD34B5CD66E20E5E618 /* model-manifest.json in Resources */,
 				5AEC23C4D4C9FC1AE1FA6606 /* qwen-model-manifest.json in Resources */,
+				DB840EE5BBE5FD0499AF55E1 /* whisper-turbo-model-manifest.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -326,6 +336,7 @@
 				197731E77F2833B51F084380 /* FunASRSpeechEngine.swift in Sources */,
 				978A4FB41683E35089FCA6D6 /* LocalStore+FunASR.swift in Sources */,
 				A91AFEF87E8AD1FA615F7E25 /* LocalStore+Qwen.swift in Sources */,
+				6C0FD54A3138664AE9F8D9C4 /* LocalStore+WhisperTurbo.swift in Sources */,
 				AC149280006A93A7413674B4 /* LocalStore.swift in Sources */,
 				065C606A93592887A5EB98F5 /* PCMFileReader.swift in Sources */,
 				78F921D7A8E29F38EFA96EFB /* QwenSpeechEngine.swift in Sources */,
@@ -334,6 +345,7 @@
 				E6A77D00A88C0E4F9F2C8030 /* RecordingSheet.swift in Sources */,
 				2FEBDE7BD4A196C2146881BD /* SenseVoiceEngine.swift in Sources */,
 				AC7C72EB89CA290847180BE6 /* VoiceBenchApp.swift in Sources */,
+				7AC440FCC95007AAE3C3B282 /* WhisperTurboSpeechEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -394,7 +406,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.7.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -483,7 +495,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.7.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

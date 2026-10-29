@@ -93,6 +93,8 @@ struct RecordingDetailsView: View {
                             .disabled(!model.idle || model.qwenModelReceipt == nil)
                         Button("仅 Fun-ASR-MLT-Nano") { model.run([.funASR], recordingID: recordingID) }
                             .disabled(!model.idle || model.funASRModelReceipt == nil)
+                        Button("仅 Whisper large-v3-turbo") { model.run([.whisperTurbo], recordingID: recordingID) }
+                            .disabled(!model.idle || model.whisperTurboModelReceipt == nil)
                     }
                 }
             } else { Text("该录音已删除。").foregroundStyle(.secondary) }

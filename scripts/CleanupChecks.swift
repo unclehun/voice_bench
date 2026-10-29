@@ -112,10 +112,12 @@ enum CleanupChecks {
         for url in [store.models.appendingPathComponent("model.bin"), store.languageModels.appendingPathComponent("encoder.bin"),
                     store.qwenModels.appendingPathComponent("tokenizer/vocab.json"),
                     store.funASRModels.appendingPathComponent("tokenizer/tokenizer.json"),
+                    store.whisperTurboModels.appendingPathComponent("turbo-encoder.int8.onnx"),
                     store.defaultModelDirectory.appendingPathComponent("source.onnx"),
                     store.defaultLanguageModelDirectory.appendingPathComponent("source.onnx"),
                     store.defaultQwenModelDirectory.appendingPathComponent("tokenizer/vocab.json"),
                     store.defaultFunASRModelDirectory.appendingPathComponent("tokenizer/tokenizer.json"),
+                    store.defaultWhisperTurboModelDirectory.appendingPathComponent("turbo-decoder.int8.onnx"),
                     appRoot.appendingPathComponent("Import-" + UUID().uuidString + "/partial.bin"),
                     appRoot.appendingPathComponent("unexpected.bin"), temp.root.appendingPathComponent("录音-partial.m4a")] {
             try put(url)
@@ -142,16 +144,19 @@ enum CleanupChecks {
         try manager.removeItem(at: store.defaultFunASRModelDirectory)
         try manager.createSymbolicLink(at: store.defaultFunASRModelDirectory, withDestinationURL: outside.appendingPathComponent("missing-funasr"))
         try await store.removeAllData()
+        try manager.removeItem(at: store.defaultWhisperTurboModelDirectory)
+        try manager.createSymbolicLink(at: store.defaultWhisperTurboModelDirectory, withDestinationURL: outside.appendingPathComponent("missing-turbo"))
+        try await store.removeAllData()
         try await store.save(second)
         try await store.removeExport(report)
         try require(try await store.load().isEmpty, "Erase all resurrected a recording")
-        let senseReceipt = await store.modelReceipt(), whisperReceipt = await store.languageModelReceipt(), qwenReceipt = await store.qwenModelReceipt(), funASRReceipt = await store.funASRModelReceipt()
-        try require(senseReceipt == nil && whisperReceipt == nil && qwenReceipt == nil && funASRReceipt == nil, "Erase all retained model receipts")
-        for url in [store.audio, store.models, store.languageModels, store.qwenModels, store.funASRModels, store.root.appendingPathComponent("Records"),
-                    store.defaultModelDirectory, store.defaultLanguageModelDirectory, store.defaultQwenModelDirectory, store.defaultFunASRModelDirectory, temp.root] {
+        let senseReceipt = await store.modelReceipt(), whisperReceipt = await store.languageModelReceipt(), qwenReceipt = await store.qwenModelReceipt(), funASRReceipt = await store.funASRModelReceipt(), turboReceipt = await store.whisperTurboModelReceipt()
+        try require(senseReceipt == nil && whisperReceipt == nil && qwenReceipt == nil && funASRReceipt == nil && turboReceipt == nil, "Erase all retained model receipts")
+        for url in [store.audio, store.models, store.languageModels, store.qwenModels, store.funASRModels, store.whisperTurboModels, store.root.appendingPathComponent("Records"),
+                    store.defaultModelDirectory, store.defaultLanguageModelDirectory, store.defaultQwenModelDirectory, store.defaultFunASRModelDirectory, store.defaultWhisperTurboModelDirectory, temp.root] {
             try require(try manager.contentsOfDirectory(atPath: url.path).isEmpty, "Erase all left files in \(url.lastPathComponent)")
         }
-        try require(Set(try manager.contentsOfDirectory(atPath: appRoot.path)) == Set(["Audio", "Models", "LanguageIDModels", "QwenModels", "FunASRModels", "Records"]), "Erase all left abandoned imports or unknown files")
+        try require(Set(try manager.contentsOfDirectory(atPath: appRoot.path)) == Set(["Audio", "Models", "LanguageIDModels", "QwenModels", "FunASRModels", "Records", "WhisperTurboModels"]), "Erase all left abandoned imports or unknown files")
         try require(try manager.contentsOfDirectory(atPath: legacy.path) == ["unrelated.keep"], "Legacy cleanup leaked known files or deleted unrelated content")
         try require(manager.fileExists(atPath: keep.path) && manager.fileExists(atPath: source.path), "Erase all deleted external data")
         _ = try await store.importAudio(source)

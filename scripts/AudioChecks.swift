@@ -15,6 +15,7 @@ struct AudioChecks {
         try await languageModelStorageChecks(base: base.appendingPathComponent("ModelFixtures"))
         try await QwenModelChecks.run(base: base.appendingPathComponent("QwenFixtures"))
         try await FunASRModelChecks.run(base: base.appendingPathComponent("FunASRFixtures"))
+        try await WhisperTurboModelChecks.run(base: base.appendingPathComponent("WhisperTurboFixtures"))
         try FunASRAudioChecks.run(base: base)
         let source = base.appendingPathComponent("synthetic.wav")
         fputs("Audio check: create source\n", stderr)
@@ -66,7 +67,7 @@ struct AudioChecks {
         try await recordingDeletionChecks(store: store, source: source, keep: item)
         fputs("Storage check: backups, exports, invalid import and cold-launch recovery\n", stderr)
         let root = store.root
-        for name in ["", "Audio", "Records", "Models", "LanguageIDModels", "QwenModels", "FunASRModels"] {
+        for name in ["", "Audio", "Records", "Models", "LanguageIDModels", "QwenModels", "FunASRModels", "WhisperTurboModels"] {
             let url = name.isEmpty ? root : root.appendingPathComponent(name)
             guard try url.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true else {
                 throw BenchError("App data directory still included in backup: \(name)")
@@ -172,10 +173,12 @@ struct AudioChecks {
               try FileManager.default.contentsOfDirectory(atPath: store.languageModels.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.qwenModels.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.funASRModels.path).isEmpty,
+              try FileManager.default.contentsOfDirectory(atPath: store.whisperTurboModels.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultLanguageModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultQwenModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultFunASRModelDirectory.path).isEmpty,
+              try FileManager.default.contentsOfDirectory(atPath: store.defaultWhisperTurboModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: temporary.root.path).isEmpty,
               FileManager.default.fileExists(atPath: externalCopy.path),
               FileManager.default.fileExists(atPath: source.path) else { throw BenchError("Clear all left app files, resurrected data or deleted external inputs") }

@@ -189,6 +189,19 @@ check(card.correctionCandidates.map(\.id) == [nextSense.id, qwenRun.id, funASRRu
 let fourEngineCard = try JSONDecoder().decode(Recording.self, from: JSONEncoder().encode(card))
 check(fourEngineCard.runs.last?.modelVersion == FunASRModel.version && fourEngineCard.runs.last?.engine == .funASR, "MLT identity and results survive restart")
 check(funASRRun.languageDetection == nil, "MLT does not consume a Whisper language plan")
+var turboRun = Run(engine: .whisperTurbo); turboRun.batchID = comparisonID
+turboRun.status = .completed; turboRun.rawText = "中英 mixed speech"
+turboRun.correction.status = "completed"; turboRun.correction.text = "中英 mixed speech."
+card.runs.append(turboRun)
+check(card.latestComparisonRuns.map(\.id) == [nextSense.id, nextApple.id, qwenRun.id, funASRRun.id, turboRun.id], "five independent engines join the current comparison")
+check(card.correctionCandidates.last?.id == turboRun.id, "Whisper participates in standard correction flow")
+let fiveEngineCard = try JSONDecoder().decode(Recording.self, from: JSONEncoder().encode(card))
+check(fiveEngineCard.runs.last?.engine == .whisperTurbo && fiveEngineCard.runs.last?.modelVersion == WhisperTurboModel.version, "Whisper identity persists independently of historical Tiny language data")
+check(Report(recording: card, environment: [:]).markdown().contains("Whisper large-v3-turbo"), "fifth model appears in exported report")
+check(turboRun.languageDetection == nil, "Whisper ASR does not create an external language routing plan")
+check(WhisperTurboModel.outputGuardTokenCount(sampleCount: 20 * 16000) == 119, "duration-bound Whisper decoding cannot masquerade as unlimited output")
+check(WhisperTurboModel.outputGuardTokenCount(sampleCount: 60 * 16000) == 223, "Whisper guard respects native text context cap")
+check(WhisperTurboModel.outputGuardTokenCount(sampleCount: -1) == 1, "invalid Whisper input cannot produce a negative budget")
 check(Report(recording: card, environment: [:]).markdown().contains("Fun-ASR-MLT-Nano"), "MLT report includes the fourth model")
 var newerApple = Run(engine: .apple); newerApple.batchID = UUID(); card.runs.append(newerApple)
 check(card.latestComparisonRuns.map(\.id) == [newerApple.id], "single-engine debug does not mix in an old Qwen result")

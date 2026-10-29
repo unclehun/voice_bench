@@ -6,6 +6,6 @@ swiftc -parse-as-library -module-cache-path .build-local/module-cache \
   -I .build-local -L .build-local -lVoiceBenchCore \
   -Xlinker -rpath -Xlinker "$PWD/.build-local" \
   VoiceBench/Audio/AudioFiles.swift VoiceBench/Engines/FunASRAudioReader.swift VoiceBench/Storage/*.swift \
-  scripts/CleanupChecks.swift scripts/QwenModelChecks.swift scripts/FunASRModelChecks.swift scripts/FunASRAudioChecks.swift scripts/AudioChecks.swift \
+  scripts/CleanupChecks.swift scripts/QwenModelChecks.swift scripts/FunASRModelChecks.swift scripts/WhisperTurboModelChecks.swift scripts/FunASRAudioChecks.swift scripts/AudioChecks.swift \
   -o .build-local/audio-checks
 .build-local/audio-checks "$@"

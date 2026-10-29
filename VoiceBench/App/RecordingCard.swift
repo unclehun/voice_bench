@@ -22,7 +22,10 @@ struct RecordingCard: View {
                     } else {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(engine.title).font(.subheadline.weight(.semibold))
-                            Text(((engine == .qwen && model.qwenModelReceipt == nil) || (engine == .funASR && model.funASRModelReceipt == nil)) ? "尚未配置模型，可在设置中载入" : (runs.isEmpty ? "尚未识别" : "本轮未运行"))
+                            Text(((engine == .qwen && model.qwenModelReceipt == nil)
+                                  || (engine == .funASR && model.funASRModelReceipt == nil)
+                                  || (engine == .whisperTurbo && model.whisperTurboModelReceipt == nil))
+                                 ? "尚未配置模型，可在设置中载入" : (runs.isEmpty ? "尚未识别" : "本轮未运行"))
                                 .font(.subheadline).foregroundStyle(.secondary)
                         }
                     }

@@ -29,6 +29,8 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 | 历史 Whisper Tiny / 独立 VAD 及 receipt | `Library/Application Support/VoiceBench/LanguageIDModels` | 0.6.0 不再载入；清除全部或删除 App |
 | 已导入 Qwen / tokenizer / 独立 VAD 及 receipt | `Library/Application Support/VoiceBench/QwenModels` | 替换 Qwen 模型、清除全部或删除 App |
 | 已导入 Fun-ASR-MLT / tokenizer / VAD 及 receipt | `Library/Application Support/VoiceBench/FunASRModels` | 替换 Fun-ASR 模型、清除全部或删除 App |
+| 已导入 Whisper Turbo / 词表 / VAD 及 receipt | `Library/Application Support/VoiceBench/WhisperTurboModels` | 替换 Whisper Turbo、清除全部或删除 App |
+| Whisper Turbo 默认源目录（文件 App 可见） | `Documents/WhisperLargeV3Turbo_INT8` | 清除全部或删除 App |
 | Fun-ASR 默认源目录（文件 App 可见） | `Documents/FunASR_MLT_Nano_INT8` | 清除全部或删除 App |
 | Qwen 默认源目录（文件 App 可见） | `Documents/Qwen3ASR_0_6B_INT8` | 清除全部或删除 App |
 | Whisper 默认源目录（文件 App 可见） | `Documents/WhisperTiny_INT8` | 清除全部或删除 App |
@@ -37,6 +39,7 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 | 录制中的音频 | `tmp/VoiceBench/录音-UUID.m4a` | 保存流程结束，不论成功与否；录制失败也清理 |
 | 旧语言检测格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/LanguageID-UUID.caf` | 历史残留由冷启动或删除录音清理；0.6.0 不再创建 |
 | Fun-ASR 格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/FunASR-UUID.caf` | 成功、失败或取消后清理；冷启动兜底清理 |
+| Whisper Turbo 格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/Whisper-UUID.caf` | 成功、失败或取消后清理；冷启动兜底清理 |
 | Qwen 格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/Qwen-UUID.caf` | 成功、失败或取消后清理；冷启动兜底清理 |
 | 原有两引擎格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/UUID.caf` | 转写结束、失败或取消；转换失败自身也清理部分输出 |
 | 待分享 JSON / Markdown | `tmp/VoiceBench/Recording-录音UUID/Report-UUID` | 分享面板关闭后清理；生成失败立即清理 |
@@ -51,7 +54,7 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 
 **设置 → 数据管理 → 清除全部本机数据与模型** 经过确认后：
 
-1. 删除 VoiceBench 私有录音、metadata、模型、`Documents/SenseVoiceSmall_INT8`、`Documents/WhisperTiny_INT8`、`Documents/Qwen3ASR_0_6B_INT8`、`Documents/FunASR_MLT_Nano_INT8` 中的模型源文件和临时工作文件；随后仅重建空的固定目录。
+1. 删除 VoiceBench 私有录音、metadata、模型、`Documents/SenseVoiceSmall_INT8`、`Documents/WhisperTiny_INT8`、`Documents/Qwen3ASR_0_6B_INT8`、`Documents/FunASR_MLT_Nano_INT8`、`Documents/WhisperLargeV3Turbo_INT8` 中的模型源文件和临时工作文件；随后仅重建空的固定目录。
 2. 清空界面中的记录、评测和分享引用，阻止旧的异步保存重新生成已删除记录。
 3. 调用 `AssetInventory.release(reservedLocale:)` 释放本 App 的苹果语音资源预留。
 4. 删除 API Key 配置文件和所在 Credentials 目录，并删除 Apple 默认语言配置、恢复中文。配置文件与其他数据清理独立尝试；失败明确提示。刷新状态及重新打开 App 均按缺省设置显示。
@@ -82,11 +85,11 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 
 ## 录音卡片的删除边界
 
-每条录音有独立的 `tmp/VoiceBench/Recording-录音UUID` 工作目录，SenseVoice、Whisper 语言检测、Apple、Qwen、Fun-ASR 的派生音频与待分享报告均归属于该目录。识别结束、失败或取消时清理本轮目录；删除卡片时再次删除整个目录、源音频内部副本及该录音的 metadata JSON。JSON 同时包含全部历史轮次、纠错、参考稿、背景和语言检测计划，因此删除覆盖整条录音的历史，而不只屏幕当前显示的结果。旧版本临时文件由升级后的首次冷启动统一清理。
+每条录音有独立的 `tmp/VoiceBench/Recording-录音UUID` 工作目录，SenseVoice、Whisper 语言检测、Apple、Qwen、Fun-ASR、Whisper Turbo 的派生音频与待分享报告均归属于该目录。识别结束、失败或取消时清理本轮目录；删除卡片时再次删除整个目录、源音频内部副本及该录音的 metadata JSON。JSON 同时包含全部历史轮次、纠错、参考稿、背景和语言检测计划，因此删除覆盖整条录音的历史，而不只屏幕当前显示的结果。旧版本临时文件由升级后的首次冷启动统一清理。
 
 Fun-ASR 上下文重试直接读取同一派生音频的区间，不另存子段音频或被拒绝的文字；预算诊断最多 256 条，保存在该录音 metadata 中，沿用上述删除范围。
 
-识别、纠错、导入、分享期间禁用删除，避免仍有任务向已删除目录写文件；播放中的删除会先停止播放并释放播放器。删除按录音 ID 执行，重试可安全处理已不存在的文件，并阻止迟到保存重建该录音。共享 SenseVoice / Whisper / Qwen / Fun-ASR 模型和其他录音的工作目录保持不变。
+识别、纠错、导入、分享期间禁用删除，避免仍有任务向已删除目录写文件；播放中的删除会先停止播放并释放播放器。删除按录音 ID 执行，重试可安全处理已不存在的文件，并阻止迟到保存重建该录音。共享 SenseVoice / 历史 Whisper Tiny / Qwen / Fun-ASR / Whisper Turbo 模型和其他录音的工作目录保持不变。
 
 新增真实文件测试覆盖两条录音：删除一条后，其多引擎历史结果、纠错、评测资料、派生音频和待分享报告全部消失；另一条录音、其工作文件、共享模型与外部原件保留。也验证重复删除、迟到保存与分享回调不会重建文件。
 
@@ -97,4 +100,4 @@ Fun-ASR 上下文重试直接读取同一派生音频的区间，不另存子段
 
 删除单条录音允许临时目录已经不存在，仍继续删除其音频和完整 metadata。识别后的临时清理、失败导入、分享回调均复用该安全清理逻辑，重复执行不报错、不重建已删数据。
 
-“清除全部”逐项尝试内部数据根目录、四类 Documents 默认模型目录、临时工作目录以及旧版已知命名的临时残留；一个步骤失败也继续处理其他独立步骤。随后重建空目录、恢复备份排除属性，并检查内容为空及内部根目录没有未知残留，只有全部通过才报告成功。失败会保留具体原因并支持重试；界面读取剩余数据失败时也不会伪装成空列表。测试布局将 Documents 与数据根目录分开，模拟 iOS 真实目录结构。
+“清除全部”逐项尝试内部数据根目录、五类 Documents 默认模型目录、临时工作目录以及旧版已知命名的临时残留；一个步骤失败也继续处理其他独立步骤。随后重建空目录、恢复备份排除属性，并检查内容为空及内部根目录没有未知残留，只有全部通过才报告成功。失败会保留具体原因并支持重试；界面读取剩余数据失败时也不会伪装成空列表。测试布局将 Documents 与数据根目录分开，模拟 iOS 真实目录结构。
