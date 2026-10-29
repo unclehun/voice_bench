@@ -72,6 +72,8 @@ public struct Run: Codable, Identifiable, Sendable {
     public var configuration: [String: String] = [:]
     public var languageDetection: LanguageDetection?
     public var correction = Correction()
+    /// Optional to keep recordings created before public-model correction readable.
+    public var deepSeekCorrection: Correction?
     public init(engine: EngineID) {
         self.engine = engine
         switch engine {
@@ -113,6 +115,10 @@ public struct Recording: Codable, Identifiable, Sendable {
             if runs[index].correction.status == "running" {
                 runs[index].correction.status = "interrupted"
                 runs[index].correction.error = "上次纠错未正常结束。"
+            }
+            if runs[index].deepSeekCorrection?.status == "running" {
+                runs[index].deepSeekCorrection?.status = "interrupted"
+                runs[index].deepSeekCorrection?.error = "上次 DeepSeek 纠错未正常结束。"
             }
         }
     }

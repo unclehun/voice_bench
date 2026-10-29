@@ -23,6 +23,7 @@
 		5926C5209FA482E20187932E /* licenses in Resources */ = {isa = PBXBuildFile; fileRef = 45BD476067478DC42C98693F /* licenses */; };
 		5AEC23C4D4C9FC1AE1FA6606 /* qwen-model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 07109D7581A7BF0C2CADC413 /* qwen-model-manifest.json */; };
 		5BE6009607BDFBAA81A72C1C /* FunASRAudioReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 659C0AC0499FCD75A6D5C5E7 /* FunASRAudioReader.swift */; };
+		5E3DA335617DE657D1F8B47E /* DeepSeekCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C83DC32CFC14501D7C111AE4 /* DeepSeekCredentialStore.swift */; };
 		5EB6F6099C51A9FEB46511CF /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70B21BAD8AD25E04275023BB /* Accelerate.framework */; };
 		76BCB465AFC67C8B0BC26C17 /* FoundationModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 68471BF46FAE67A11C7720B9 /* FoundationModels.framework */; };
 		78F921D7A8E29F38EFA96EFB /* QwenSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */; };
@@ -31,6 +32,7 @@
 		A37D2FD34B5CD66E20E5E618 /* model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = A7148698F0BFFF89EB1F680E /* model-manifest.json */; };
 		A6B0E6357AF0608228E851C1 /* BenchComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFAC48F57F95795D0A41AAFF /* BenchComponents.swift */; };
 		A91AFEF87E8AD1FA615F7E25 /* LocalStore+Qwen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6111F43FCF2190F06602E303 /* LocalStore+Qwen.swift */; };
+		A92B14A82AA05A6F785DD632 /* CorrectionResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B5F0132A9A6B35CC7B00EA /* CorrectionResultsView.swift */; };
 		AC149280006A93A7413674B4 /* LocalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117193E8BDCF764D0FDDB300 /* LocalStore.swift */; };
 		AC7C72EB89CA290847180BE6 /* VoiceBenchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B3C2675E1EE397E670D2A0F /* VoiceBenchApp.swift */; };
 		CCFDA7F13B63D0AF604704E4 /* BenchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4346D668EEBB9F2F30BC9C53 /* BenchView.swift */; };
@@ -60,6 +62,7 @@
 		46704A2995941648A1BC0D58 /* RecordingDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingDetailsView.swift; sourceTree = "<group>"; };
 		4B3C2675E1EE397E670D2A0F /* VoiceBenchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceBenchApp.swift; sourceTree = "<group>"; };
 		5103244B66962827068103B2 /* VoiceBench.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = VoiceBench.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		52B5F0132A9A6B35CC7B00EA /* CorrectionResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrectionResultsView.swift; sourceTree = "<group>"; };
 		5BACE6BFEA2B24938222D048 /* LocalStore+FunASR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalStore+FunASR.swift"; sourceTree = "<group>"; };
 		5F75EB11AB2F97E4AE2D1476 /* BenchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchViewModel.swift; sourceTree = "<group>"; };
 		6111F43FCF2190F06602E303 /* LocalStore+Qwen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalStore+Qwen.swift"; sourceTree = "<group>"; };
@@ -81,6 +84,7 @@
 		BE1640A62FA32CB4481B3771 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BFAC48F57F95795D0A41AAFF /* BenchComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchComponents.swift; sourceTree = "<group>"; };
 		C8345A3EE62560CE9473FA30 /* onnxruntime.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = Vendor/onnxruntime.xcframework; sourceTree = "<group>"; };
+		C83DC32CFC14501D7C111AE4 /* DeepSeekCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekCredentialStore.swift; sourceTree = "<group>"; };
 		CFF01BC70CB21A73FFCF065A /* FunASRSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FunASRSpeechEngine.swift; sourceTree = "<group>"; };
 		DCAF3C3555C2CCB14DEA2F9E /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		E34FB7B837F7D979952BD186 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
@@ -179,6 +183,7 @@
 				AA91BB880360937136759484 /* BenchSettingsView.swift */,
 				4346D668EEBB9F2F30BC9C53 /* BenchView.swift */,
 				5F75EB11AB2F97E4AE2D1476 /* BenchViewModel.swift */,
+				52B5F0132A9A6B35CC7B00EA /* CorrectionResultsView.swift */,
 				0B898DCB06C8A56FC84DA03C /* RecordingCard.swift */,
 				46704A2995941648A1BC0D58 /* RecordingDetailsView.swift */,
 				941E43A1051BC579DE6DE723 /* RecordingSheet.swift */,
@@ -225,6 +230,7 @@
 			isa = PBXGroup;
 			children = (
 				2C9F0EA5ED330A9C89B8B80C /* AppTemporaryFiles.swift */,
+				C83DC32CFC14501D7C111AE4 /* DeepSeekCredentialStore.swift */,
 				117193E8BDCF764D0FDDB300 /* LocalStore.swift */,
 				5BACE6BFEA2B24938222D048 /* LocalStore+FunASR.swift */,
 				6111F43FCF2190F06602E303 /* LocalStore+Qwen.swift */,
@@ -317,6 +323,8 @@
 				E55E8D6136D171657BD27F06 /* BenchSettingsView.swift in Sources */,
 				CCFDA7F13B63D0AF604704E4 /* BenchView.swift in Sources */,
 				F853195F598A490DF2815DD9 /* BenchViewModel.swift in Sources */,
+				A92B14A82AA05A6F785DD632 /* CorrectionResultsView.swift in Sources */,
+				5E3DA335617DE657D1F8B47E /* DeepSeekCredentialStore.swift in Sources */,
 				5BE6009607BDFBAA81A72C1C /* FunASRAudioReader.swift in Sources */,
 				197731E77F2833B51F084380 /* FunASRSpeechEngine.swift in Sources */,
 				978A4FB41683E35089FCA6D6 /* LocalStore+FunASR.swift in Sources */,
@@ -390,7 +398,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.5.3;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -479,7 +487,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.5.3;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -27,54 +27,55 @@ struct RecordingCard: View {
                         }
                     }
                 }
-                HStack(spacing: 0) {
-                    Spacer()
-                    HStack(spacing: 0) {
-                        Button {
-                            correctionExpanded = false
-                            model.correctLatest(recordingID: recording.id)
-                        } label: {
-                            HStack(spacing: 6) {
-                                if correcting { ProgressView().controlSize(.small) }
-                                Text(correcting ? "纠错中…" : "纠错")
+                if recording.hasCorrectionAttempts || correcting {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { correctionExpanded.toggle() }
+                    } label: {
+                        Label(correctionExpanded ? "收起纠错结果" : "查看纠错结果与状态",
+                              systemImage: correctionExpanded ? "chevron.up" : "chevron.down")
+                            .frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.bordered).tint(.green)
+                    .accessibilityIdentifier("correction.toggle.\(recording.id)")
+                    .accessibilityValue(correctionExpanded ? "已展开" : "已收起")
+                    HStack {
+                        Text(correcting ? "两路纠错处理中…" : "Apple 本地 · DeepSeek 公网")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Menu {
+                            Button("重新运行两路纠错", systemImage: "arrow.clockwise") {
+                                correctionExpanded = true
+                                model.correctLatest(recordingID: recording.id)
                             }
-                            .padding(.horizontal, 16).frame(minHeight: 44)
+                        } label: {
+                            Label("更多操作", systemImage: "ellipsis").font(.caption).frame(minHeight: 44)
                         }
                         .disabled(!model.idle || recording.correctionCandidates.isEmpty)
-                        .accessibilityIdentifier("correction.run.\(recording.id)")
-                        if recording.hasCorrectionResults && !correcting {
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.2)) { correctionExpanded.toggle() }
-                            } label: {
-                                Image(systemName: "triangle.fill")
-                                    .rotationEffect(.degrees(correctionExpanded ? 180 : 0))
-                                    .foregroundStyle(.green).frame(width: 44, height: 44)
-                            }
-                            .accessibilityLabel(correctionExpanded ? "收起纠错结果" : "展开纠错结果")
-                            .accessibilityIdentifier("correction.toggle.\(recording.id)")
-                            .accessibilityValue(correctionExpanded ? "已展开" : "已收起")
-                        }
+                        .accessibilityIdentifier("correction.rerun-menu.\(recording.id)")
                     }
-                    .buttonStyle(.plain)
-                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.secondary.opacity(0.3)).allowsHitTesting(false))
-                }
-                if !correcting, let failed = runs.first(where: {
-                    ["failed", "skipped_unavailable", "cancelled", "interrupted"].contains($0.correction.status)
-                }), let error = failed.correction.error {
-                    Text("\(failed.engine.title) 纠错：\(error)").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Button {
+                        correctionExpanded = true
+                        model.correctLatest(recordingID: recording.id)
+                    } label: {
+                        Label("开始纠错", systemImage: "text.badge.checkmark")
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!model.idle || recording.correctionCandidates.isEmpty)
+                    .accessibilityIdentifier("correction.run.\(recording.id)")
                 }
             }
             .padding(14).background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.secondary.opacity(0.16)))
 
-            if correctionExpanded && recording.hasCorrectionResults && !correcting {
+            if correctionExpanded && recording.hasCorrectionAttempts {
                 VStack(alignment: .leading, spacing: 14) {
                     Text("纠错结果").font(.subheadline.weight(.semibold))
-                    ForEach(runs.filter { $0.correction.hasResult }) { run in
+                    ForEach(runs.filter { $0.hasCorrectionAttempts }) { run in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(run.engine.title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                            ExpandableTranscript(text: run.correction.text ?? "")
-                            if let error = run.correction.error { Text(error).font(.caption).foregroundStyle(.secondary) }
+                            CorrectionResultsView(run: run)
                         }
                     }
                 }
@@ -97,6 +98,7 @@ struct RecordingCard: View {
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24))
         .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(Color.secondary.opacity(0.18)))
         .onChange(of: runs.map(\.id)) { _, _ in correctionExpanded = false }
+        .onChange(of: correcting) { _, value in if value { correctionExpanded = true } }
         .accessibilityElement(children: .contain)
     }
 

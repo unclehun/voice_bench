@@ -1,6 +1,6 @@
 # VoiceBench · 语音对比
 
-简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8** 与 **Fun-ASR-MLT-Nano INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.4.1**。
+简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8** 与 **Fun-ASR-MLT-Nano INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.5.3**。
 
 当前交付包含 Swift 源码、生成的 Xcode 工程、锁定依赖、模型准备脚本、手动触发的 GitHub Actions 工作流和本地逻辑校验。云端仓库为 [unclehun/voice_bench](https://github.com/unclehun/voice_bench)，操作步骤见 [GitHub 云端编译](docs/GITHUB_ACTIONS.md)。**本地验证尚不包含 iOS SDK 编译或 iPhone 测试，实际云端构建状态以 Actions 为准。**验证边界见 [验证记录](docs/VALIDATION.md)。
 
@@ -13,16 +13,26 @@
 - 原文及完成片段落盘，重启后把未完成任务标记为中断。
 - 私有目录保存数据，清理临时文件与异常退出残留；提供“清除全部本机数据与模型”。
 - 人工参考稿计算 CER；JSON 和 Markdown 系统分享导出。
-- 可选 Foundation Models 本地纠错：独立执行、分块、差异高亮、保守修改检查。参考稿不进入纠错接口，失败不覆盖 ASR。
+- Foundation Models 本地纠错与可选 DeepSeek Flash 公网纠错：同时处理同一份原始转写，独立保存状态、耗时、建议和输出，分块、差异高亮并执行保守修改检查。参考稿不进入纠错接口，失败不覆盖 ASR。
 
 主界面按录音显示卡片，左上角 **+** 打开录音浮层，右上角 **设置** 进入模型配置与数据管理。无需登录 App 账号或配置服务端。
 
 - 录音浮层显示计时器：红色圆形开始录音，绿色方形停止并保存，两种按钮互斥。停止后自动返回列表，新录音按“录音 1、录音 2…”命名；浮层也保留音频文件导入入口。
 - 卡片点击 **识别**，依次运行 SenseVoice、Apple，再运行已载入的 Qwen、Fun-ASR，展示本轮结果；未载入这两套时继续原有双引擎流程。每轮结果归为一个 batch，新一轮排队时不会拼上旧一轮的文字或纠错；历史记录在 **详情** 中保留。
-- 点击卡片 **纠错**，依次处理本轮已成功识别的非空文本。完成后出现绿色三角图标，点击展开 / 收起各套纠错结果；失败会显示错误，没有结果时不显示三角。
+- 点击卡片 **开始纠错**，依次处理本轮成功识别的非空文本；每份文字同时交给 Apple 本地与 DeepSeek 公网模型。结果区域自动展开，按识别引擎及纠错模型分别显示文字、状态、耗时和错误。整行 **查看纠错结果与状态 / 收起纠错结果** 只控制展示，重新执行放在独立的 **更多操作 → 重新运行两路纠错** 菜单中。
 - 卡片可播放 / 停止音频、删除整条录音。删除会清理该录音的音频、全部历史识别与纠错、参考稿、背景和内部临时工作文件，保留其他录音与共享模型。
-- **设置** 集中管理 SenseVoice / Whisper / Qwen / Fun-ASR 默认目录及手工导入、Apple 语言资源、纠错可用性和全部数据清理，可通过系统返回按钮回主界面。
+- **设置** 集中管理 SenseVoice / Whisper / Qwen / Fun-ASR 默认目录及手工导入、Apple 语言资源、纠错可用性、DeepSeek API Key 和全部数据清理，可通过系统返回按钮回主界面。
 - **详情** 保留参考稿、纠错背景、CER、JSON / Markdown 导出、历史运行明细和单引擎调试入口。
+
+### DeepSeek 公网纠错
+
+在 **设置 → DeepSeek 公网纠错** 输入并保存 API Key，随后在录音卡片点击 **开始纠错**。支持更新和删除 Key；Key 只保存在 App 私有配置文件 `Library/Application Support/VoiceBench/Credentials/deepseek-api-key.json`，使用原子写入、设备文件保护和仅所有者可读写权限，不进入录音文件、UserDefaults 或报告。启动时自动读取，退出 / 重开或保留数据的覆盖更新无需重新填写；更新应保持同一 App 身份，避免先删除 App。手动删除 Key、清除全部数据或删除 App 会移除该配置，文件缺失时直接显示未配置，不创建额外状态文件。未配置 Key 时 Apple 纠错照常运行；Apple 模型不可用也不阻止 DeepSeek 运行。
+
+2026-10-28 查阅 [DeepSeek 官方更新日志](https://api-docs.deepseek.com/updates/)，选择最新 **DeepSeek-V4.1-Flash-1017**，API 使用官方别名 `deepseek-flash`。按 [Chat Completions 文档](https://api-docs.deepseek.com/api/create-chat-completion/) 调用 `https://api.deepseek.com/chat/completions`，关闭思考、temperature=0、JSON 输出；按 400 字分块，附前后各最多 120 字上下文。网络 / HTTP 失败不自动重试，避免重复计费；取消会中止正在等待的网络请求。
+
+提示词要求仅修正有充分依据的误识、错别字和必要标点，保留语言、简繁体和口语，不润色、翻译或补充事实；数字、日期、否定和人物关系保持不变。背景、词条及转写均作为数据，不执行其中的指令。返回片段 ID、目标块全文和简短依据，再经过与 Apple 相同的保守检查。提示词版本及 SHA-256 随结果保存。
+
+公网纠错需要互联网并由 DeepSeek 按用量计费，仅发送本次原始转写、相邻文字和用户填写的纠错背景，不发送音频、参考稿或其他引擎结果。Apple 本地纠错继续离线运行。JSON / Markdown 报告分别包含两路纠错结果和 CER；详情中的 **计算 / 更新 CER** 可重新计算。
 
 ## 运行条件
 
@@ -57,7 +67,7 @@ Apple Speech 重复报 `Foundation._GenericObjCError Code=0` 时，新版采用�
 bash scripts/check_local.sh
 ```
 
-该命令用系统 `swiftc` 编译实际核心代码，再检查 CER、Unicode、空参考稿、字符 diff、取消和报告；不依赖 XCTest 或 iOS SDK。正式 XCTest 保留在 `Tests/VoiceBenchCoreTests`，有完整 Xcode 的机器运行 `swift test`。
+该命令用系统 `swiftc` 编译实际核心代码，再检查 CER、Unicode、空参考稿、字符 diff、取消和报告，以及使用 URLProtocol 模拟响应的 DeepSeek 请求 / 错误 / 取消和持久化测试，并用真实临时文件验证 API Key 配置文件保存、新实例读取、删除及实际完整数据清除；不使用真实密钥或访问真实 API，不依赖 XCTest 或 iOS SDK。正式 XCTest 保留在 `Tests/VoiceBenchCoreTests`，有完整 Xcode 的机器运行 `swift test`。
 
 音频转换 / 保存测试使用真实 AVFoundation，不录制麦克风：
 
@@ -215,7 +225,7 @@ python3 scripts/prepare_funasr_models.py --verify-only
 
 删除与备份行为见 [数据清理说明](docs/DATA_LIFECYCLE.md)。在 iPhone 设置中须选择 **“删除 App”**；**“卸载 App”会保留数据**。App 私有录音、结果和模型随删除移除；导出副本、导入原件及苹果共享系统模型不属于 App 私有数据。
 
-- **本次 Fun-ASR 更新尚未通过 iOS SDK 编译与真机验证。**本地语法和跨平台类型检查不能替代它。
+- **本次 DeepSeek 更新尚未通过 iOS SDK 编译、真实 API 或真机验证。**本地语法和跨平台类型检查不能替代它。
 - 前台任务为主。后台或系统音频中断会结束任务，保留已完成片段；重新运行会创建新记录，没有断点续跑。
 - 原生 SenseVoice / Whisper 取消在原生推理调用之间生效，当前调用期间可能要等待。
 - SenseVoice 使用原默认配置：2 线程 / 25 秒分段上限、自动检测语言。Fun-ASR 使用独立的上下文预算与低能量重分段策略，见接入说明。
@@ -228,5 +238,7 @@ python3 scripts/prepare_funasr_models.py --verify-only
 - [Apple SpeechAnalyzer 示例与说明](https://developer.apple.com/videos/play/wwdc2025/277/)
 - [SpeechTranscriber 可用性](https://developer.apple.com/documentation/speech/speechtranscriber/isavailable)
 - [Foundation Models](https://developer.apple.com/documentation/foundationmodels)
+- [DeepSeek 模型更新](https://api-docs.deepseek.com/updates/)
+- [DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)
 - [SenseVoice 模型](https://k2-fsa.github.io/sherpa/onnx/sense-voice/pretrained.html)
 - [第三方许可](THIRD_PARTY_NOTICES.md)

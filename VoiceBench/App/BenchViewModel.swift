@@ -30,6 +30,8 @@ final class BenchViewModel: ObservableObject {
     @Published var funASRModelDetail = "正在检查 Fun-ASR 默认目录…"
     @Published var speech = SpeechCapability(available: false, installed: false, detail: "正在检查…")
     @Published var correctionUnavailable: String? = "正在检查…"
+    @Published var deepSeekKeyConfigured = false
+    @Published var deepSeekKeyStatus = "尚未配置 API Key"
     @Published var shareFiles: [URL] = []
     @Published var showShare = false
     @Published var evaluations: [UUID: RunEvaluation] = [:]
@@ -40,6 +42,8 @@ final class BenchViewModel: ObservableObject {
     private let funASR = FunASRSpeechEngine()
     private let languageDetector = WhisperLanguageDetector()
     private let corrector = AppleTextCorrector()
+    private let deepSeekCorrector = DeepSeekTextCorrector()
+    private let credentials = DeepSeekCredentialStore()
     private var task: Task<Void, Never>?
     private var cancellation = CancellationFlag()
     private var recorder: AVAudioRecorder?
@@ -61,6 +65,7 @@ final class BenchViewModel: ObservableObject {
 
     init() {
         do { store = try LocalStore() } catch { self.error = error.localizedDescription }
+        refreshDeepSeekKeyStatus()
         Task {
             do {
                 recordings = try await store?.load() ?? []
@@ -71,6 +76,7 @@ final class BenchViewModel: ObservableObject {
     }
 
     func refresh() async {
+        refreshDeepSeekKeyStatus()
         do {
             if let receipt = try await store?.importDefaultModelsIfComplete() {
                 modelReceipt = receipt
@@ -123,6 +129,33 @@ final class BenchViewModel: ObservableObject {
         } else if funASRModelDetail == "正在检查 Fun-ASR 默认目录…" {
             funASRModelDetail = "默认目录为空或尚未传完；也可手动选择完整 Fun-ASR 模型目录。"
         }
+    }
+
+    private func refreshDeepSeekKeyStatus() {
+        do {
+            deepSeekKeyConfigured = try credentials.read() != nil
+            deepSeekKeyStatus = deepSeekKeyConfigured ? "API Key 已保存在 App 数据目录；重启或覆盖更新后自动读取" : "尚未配置 API Key；仅运行 Apple 本地纠错"
+        } catch {
+            deepSeekKeyConfigured = false
+            deepSeekKeyStatus = error.localizedDescription
+        }
+    }
+
+    @discardableResult
+    func saveDeepSeekAPIKey(_ value: String) -> Bool {
+        guard idle else { return false }
+        do {
+            try credentials.save(value)
+            refreshDeepSeekKeyStatus()
+            return true
+        } catch { self.error = error.localizedDescription; return false }
+    }
+
+    func removeDeepSeekAPIKey() {
+        guard idle else { return }
+        defer { refreshDeepSeekKeyStatus() }
+        do { try credentials.remove() }
+        catch { self.error = error.localizedDescription }
     }
 
     func importAudio(_ url: URL, removeSourceAfterImport: Bool = false) {
@@ -513,24 +546,53 @@ final class BenchViewModel: ObservableObject {
 
     private func correct(_ runs: [Run], recording: Recording) {
         guard idle, !runs.isEmpty else { return }
-        if let reason = correctionUnavailable { error = "本地文字纠错当前不可用：\(reason)。可在设置中检查。"; return }
         stopPlayback(); selectedID = recording.id
-        begin("正在依次纠错识别结果…", recordingID: recording.id, activity: .correction)
+        begin("正在并行启动 Apple / DeepSeek 纠错…", recordingID: recording.id, activity: .correction)
         let flag = cancellation
         task = Task {
             defer { finish() }
+            let key: String?
+            let credentialFailure: String?
+            do { key = try credentials.read(); credentialFailure = nil }
+            catch { key = nil; credentialFailure = error.localizedDescription }
             for run in runs {
                 if flag.isCancelled || Task.isCancelled { break }
-                var initial = Correction(); initial.status = "running"
-                await updateCorrection(initial, runID: run.id, recordingID: recording.id)
-                message = "正在纠错 \(run.engine.title)…"
-                let result = await corrector.correct(original: run.rawText, context: recording.context, cancellation: flag) { [weak self] correction in
-                    await self?.updateCorrection(correction, runID: run.id, recordingID: recording.id)
+                for provider in CorrectionProvider.allCases {
+                    var initial = provider == .apple ? Correction() : DeepSeekTextCorrector.initialCorrection(context: recording.context)
+                    initial.context = recording.context; initial.status = "running"
+                    await updateCorrection(initial, provider: provider, runID: run.id, recordingID: recording.id)
                 }
-                await updateCorrection(result, runID: run.id, recordingID: recording.id)
+                message = "\(run.engine.title)：Apple 本地与 DeepSeek 公网纠错同时运行…"
+                // Structured children inherit cancellation; each persists independently as soon as it finishes.
+                async let local: Void = correctWithApple(run, recording: recording, flag: flag)
+                async let remote: Void = correctWithDeepSeek(run, recording: recording, apiKey: key,
+                                                            credentialFailure: credentialFailure, flag: flag)
+                _ = await (local, remote)
             }
-            message = flag.isCancelled ? "纠错已停止。" : "纠错已结束，点击卡片上的三角图标查看结果。"
+            message = flag.isCancelled ? "纠错已停止，已完成的模型结果仍保留。" : "纠错已结束，Apple 与 DeepSeek 的状态和结果已分别展示。"
         }
+    }
+
+    private func correctWithApple(_ run: Run, recording: Recording, flag: CancellationFlag) async {
+        let result = await corrector.correct(original: run.rawText, context: recording.context, cancellation: flag) { [weak self] correction in
+            await self?.updateCorrection(correction, provider: .apple, runID: run.id, recordingID: recording.id)
+        }
+        await updateCorrection(result, provider: .apple, runID: run.id, recordingID: recording.id)
+    }
+
+    private func correctWithDeepSeek(_ run: Run, recording: Recording, apiKey: String?, credentialFailure: String?,
+                                     flag: CancellationFlag) async {
+        let result: Correction
+        if let credentialFailure {
+            var failure = DeepSeekTextCorrector.initialCorrection(context: recording.context)
+            failure.status = "failed"; failure.error = credentialFailure
+            result = failure
+        } else {
+            result = await deepSeekCorrector.correct(original: run.rawText, context: recording.context, apiKey: apiKey, cancellation: flag) { [weak self] correction in
+                await self?.updateCorrection(correction, provider: .deepSeek, runID: run.id, recordingID: recording.id)
+            }
+        }
+        await updateCorrection(result, provider: .deepSeek, runID: run.id, recordingID: recording.id)
     }
 
     func export(recordingID: UUID) {
@@ -559,7 +621,11 @@ final class BenchViewModel: ObservableObject {
         begin("正在清除本机数据与模型…")
         isClearingData = true
         task = Task {
-            defer { isClearingData = false; finish() }
+            defer { isClearingData = false; refreshDeepSeekKeyStatus(); finish() }
+            var keyRemovalError: String?
+            do { try credentials.remove() }
+            catch { keyRemovalError = error.localizedDescription }
+            refreshDeepSeekKeyStatus()
             do {
                 try await store.removeAllData()
                 recordings = []; selectedID = nil; evaluations = [:]
@@ -570,7 +636,7 @@ final class BenchViewModel: ObservableObject {
                 funASRModelDetail = "默认目录已清空；可重新传入 FunASR_MLT_Nano_INT8。"
                 await apple.releaseReservations()
                 await refresh()
-                message = "本机数据已清除，苹果语音资源预留已释放。共享系统模型由 iOS 管理。"
+                message = "本机数据和 API Key 配置已清除，苹果语音资源预留已释放。共享系统模型由 iOS 管理。"
             } catch {
                 // Do not turn a failed reload into an apparently successful empty recording list.
                 if let remaining = try? await store.load() {
@@ -585,7 +651,7 @@ final class BenchViewModel: ObservableObject {
                 if languageModelReceipt == nil { languageModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 if qwenModelReceipt == nil { qwenModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 if funASRModelReceipt == nil { funASRModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
-                self.error = "清理未全部完成：\(error.localizedDescription)。可重试，或在系统设置中选择“删除 App”。"
+                self.error = (["清理未全部完成：\(error.localizedDescription)。可重试。", keyRemovalError].compactMap { $0 }).joined(separator: " ")
             }
         }
     }
@@ -649,9 +715,14 @@ final class BenchViewModel: ObservableObject {
         catch { self.error = "保存片段失败：\(error.localizedDescription)"; flag.cancel() }
         message = "\(run.engine.title) 已完成 \(run.segments.count) 个片段"
     }
-    private func updateCorrection(_ correction: Correction, runID: UUID, recordingID: UUID) async {
+    private func updateCorrection(_ correction: Correction, provider: CorrectionProvider, runID: UUID, recordingID: UUID) async {
         guard var run = findRun(runID, recordingID: recordingID) else { return }
-        run.correction = correction
+        run.setCorrection(correction, for: provider)
+        if interrupted && run.correction(for: provider).status == "cancelled" {
+            var value = run.correction(for: provider)
+            value.status = "interrupted"; value.error = "App 进入后台或发生系统中断，纠错未完成。"
+            run.setCorrection(value, for: provider)
+        }
         do { try await replace(run, recordingID: recordingID) }
         catch { self.error = "保存纠错失败：\(error.localizedDescription)"; cancellation.cancel() }
     }
@@ -667,7 +738,7 @@ final class BenchViewModel: ObservableObject {
                 "app_build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
                 "thermal_state": String(ProcessInfo.processInfo.thermalState.rawValue),
                 "low_power_mode": String(ProcessInfo.processInfo.isLowPowerModeEnabled),
-                "memory_measurement": "not_measured", "execution": "on_device_only"]
+                "memory_measurement": "not_measured", "execution": "asr_on_device; optional_deepseek_correction_over_https"]
     }
 }
 

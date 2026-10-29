@@ -1,4 +1,4 @@
-# 报告格式 v1
+# 报告格式 v2
 
 `VoiceBench.json` 为结构化报告，`VoiceBench.md` 为同次导出的阅读版。`report-example.json` 是合成的格式样例，不是真实 ASR 测试结果。
 
@@ -20,11 +20,16 @@
 | `runs[].languageDetection` | 可选；Whisper 模型版本、策略、初始化 / 检测时间、语音段的窗口标签与最终路由；旧记录没有此字段也可读取 |
 | `runs[].segments[].language` | 可选；Apple 实际采用的语言或 SenseVoice 返回的标签，不是逐词语言标注 |
 | `runs[].configuration` | 实际引擎配置、模型文件哈希、当时设备环境 |
-| `runs[].correction` | 独立纠错状态、提示哈希、用户背景、输出、分块建议与采用文字 |
-| `evaluation[]` | 按 runID 关联的 CER、纠错 CER、ΔCER 和 RTF |
+| `runs[].correction` | Apple 本地纠错的状态、模型、提示版本 / 哈希、用户背景、输出、分块建议与采用文字；沿用 v1 字段 |
+| `runs[].deepSeekCorrection` | DeepSeek 公网纠错，同样的 Correction 结构；旧记录缺省可读取，未请求时导出 null |
+| `evaluation[]` | 按 runID 关联的原文 CER、两路纠错 CER / ΔCER 和 RTF |
 | `evaluation[].rawCER` | 替换、删除、插入、参考 / 输出字符数及 rate |
+| `evaluation[].correctedCER` / `deltaCER` | Apple 本地纠错 CER 与相对原文 CER 的变化，沿用 v1 字段 |
+| `evaluation[].deepSeekCER` / `deepSeekDeltaCER` | DeepSeek 纠错 CER 与相对原文 CER 的变化 |
 
 没有获得的数据使用 null，不填 0 冒充测量。无参考稿的 CER 为 null；规范化后空参考稿的 CER 对象仍记录编辑计数，但 rate 为 null。失败 / 取消 ASR 不计算完整 CER 或 RTF。
+
+两路纠错只有 `completed` / `partial` 且有全文时参与各自 CER 计算。状态还包括 `not_requested`、`running`、`failed`、`cancelled`、`interrupted`、`skipped_empty`、`skipped_unavailable` 和 `skipped_unconfigured`。每路模型独立失败、取消与恢复；部分失败的片段保留原文。`deepSeekCorrection.model=deepseek-flash`、`promptVersion=deepseek-minimal-proofread-v1`，`promptHash` 为实际系统提示的 SHA-256。API Key 不出现在报告中。`environment.execution` 明确识别在本机、可选 DeepSeek 纠错通过 HTTPS。
 
 本地保存的 metadata JSON 使用内部 Codable 日期格式；面向用户的导出报告使用 ISO-8601 日期。导出报告包含参考稿和用户背景，用户通过系统分享面板决定保存位置。
 

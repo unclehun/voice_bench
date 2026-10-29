@@ -17,7 +17,11 @@ public extension Recording {
     }
 
     var hasCorrectionResults: Bool {
-        latestComparisonRuns.contains { $0.correction.hasResult }
+        latestComparisonRuns.contains { run in CorrectionProvider.allCases.contains { run.correction(for: $0).hasResult } }
+    }
+
+    var hasCorrectionAttempts: Bool {
+        latestComparisonRuns.contains(where: { $0.hasCorrectionAttempts })
     }
 }
 

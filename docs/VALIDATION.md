@@ -1,5 +1,19 @@
 # 验证记录
 
+## 2026-10-29：DeepSeek 并行纠错与配置文件（0.5.3）
+
+此前的纠错功能修改尚未编译或在用户真机运行，本节按最终实现记录验证范围。
+
+- 根据 2026-10-28 检索的 [DeepSeek 官方更新日志](https://api-docs.deepseek.com/updates/)，使用 DeepSeek-V4.1-Flash-1017 的 API 别名 `deepseek-flash`。非思考模式、temperature=0、JSON 输出；按 400 字分块，仅传目标、相邻只读上下文和用户背景。提示词要求最小修改、保留语言和口语、不执行输入中的指令，并沿用敏感事实及改动幅度检查。
+- 每份识别原文通过结构化 `async let` 同时运行 Apple / DeepSeek，两路各自更新及保存；某路缺失配置或不可用不阻止另一路。API Key 无效、余额不足、限流、超时等单独展示。网络 / HTTP 失败不自动重试，部分失败保留相关片段原文。取消同时传递到两路任务和正在等待的 URLSession 请求。
+- API Key 只保存在 App 私有配置文件 `Library/Application Support/VoiceBench/Credentials/deepseek-api-key.json`。原子写入、目录 0700 / 文件 0600、iOS 完整文件保护、排除设备备份；不写入 metadata、UserDefaults 或报告。配置文件缺失直接返回未配置，不创建其他状态文件。启动 / 保留数据的覆盖更新自动读取；删除 Key、清除全部或删除 App 会移除配置。
+- 查看结果改为整行 44pt 以上按钮，重新执行移入独立的“更多操作”菜单，避免一次点击误触重跑。报告格式 v2 保留 Apple 字段，新增 `deepSeekCorrection` / `deepSeekCER` / `deepSeekDeltaCER`。
+- `bash scripts/check_local.sh` 通过 **34,467 项核心断言、50 项纠错检查和 29 项配置文件检查**。纠错检查使用 URLProtocol 模拟响应，覆盖请求格式、分块、数字保护、非法 / 空 / 截断响应、401 / 402 / 403 / 429 / 503、超时、部分失败、取消、独立 CER 与持久化。配置检查使用真实临时文件，覆盖文件权限、保存 / 替换 / 无效保存保护、重启及模拟覆盖更新读取、损坏文件错误脱敏、删除 App 数据容器、重装读取为空、实际 `LocalStore.removeAllData()` 和重复清除。配置保存没有额外目录或状态文件。
+- 凭据代码 targeted concurrency 类型检查、全部 App Swift frontend parse、XcodeGen 工程生成及 plist / 工程 / 脚本检查通过。既有音频清理回归保留 API Key 配置文件删除断言，供云端执行。
+- **未执行本次 iOS SDK 完整编译、真实 DeepSeek API 调用或 iPhone 界面、文件保护、删除 / 重装验收**。本机只有 Command Line Tools，模拟响应与文件测试不能替代真机验收。
+
+真机验收：保存 Key → 退出并重开 App → 运行纠错并检查两路结果 → 同一 App 身份覆盖安装新版后继续调用。反复查看结果不产生新请求，更多操作才触发重跑；验证未配置 Key、Apple 不可用、无效 Key、断网、取消、后台、导出及 CER。最后删除 Key / 清除全部后重开应为未配置，系统删除 App 并重装也应为未配置。
+
 ## 2026-10-28：Fun-ASR 512 上下文审计与修复（0.4.1）
 
 - 确认原生 sherpa-onnx 1.13.8 在 KV 容量耗尽时也会停止生成，结果接口未返回停止原因；原来只拒绝生成数达到 256 的逻辑不能识别这类截断。用同版本 C++ tokenizer 核对现有提示为音频前 18 / 后 5，共 23 token。读取固定模型元数据及原生特征实现，按音频长度计算保守 prefill 上界，联合输出数检查并预留 16 token；不使用原文本骨干的 40960 容量。

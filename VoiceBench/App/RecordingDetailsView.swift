@@ -48,7 +48,7 @@ struct RecordingDetailsView: View {
                                 Text(String(format: "RTF %.3f", rtf)).font(.caption).foregroundStyle(.secondary)
                             }
                             if let evaluation = model.evaluations[run.id] {
-                                Text("CER \(BenchFormat.percent(evaluation.rawCER?.rate)) · 纠错 CER \(BenchFormat.percent(evaluation.correctedCER?.rate))")
+                                Text("原文 CER \(BenchFormat.percent(evaluation.rawCER?.rate)) · Apple 纠错 \(BenchFormat.percent(evaluation.correctedCER?.rate)) · DeepSeek 纠错 \(BenchFormat.percent(evaluation.deepSeekCER?.rate))")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                             if let plan = run.languageDetection {
@@ -61,10 +61,19 @@ struct RecordingDetailsView: View {
                                 }
                             }
                             if run.status == .completed {
-                                Button("纠错此结果") { model.correct(runID: run.id, recordingID: recordingID) }
+                                if run.hasCorrectionAttempts {
+                                    Menu("纠错操作") {
+                                        Button("重新运行 Apple + DeepSeek 纠错", systemImage: "arrow.clockwise") {
+                                            model.correct(runID: run.id, recordingID: recordingID)
+                                        }
+                                    }
                                     .disabled(!model.idle || run.rawText.isEmpty)
+                                } else {
+                                    Button("运行 Apple + DeepSeek 纠错") { model.correct(runID: run.id, recordingID: recordingID) }
+                                        .buttonStyle(.borderless).disabled(!model.idle || run.rawText.isEmpty)
+                                }
                             }
-                            CorrectionDetailsView(correction: run.correction)
+                            if run.hasCorrectionAttempts { CorrectionResultsView(run: run, showDetails: true) }
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(run.engine.title)
@@ -90,37 +99,5 @@ struct RecordingDetailsView: View {
         }
         .navigationTitle(recording?.name ?? "录音详情").navigationBarTitleDisplayMode(.inline)
         .onAppear { model.selectedID = recordingID }
-    }
-}
-
-private struct CorrectionDetailsView: View {
-    let correction: Correction
-    var body: some View {
-        if correction.status != "not_requested" {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("纠错耗时：\(BenchFormat.seconds(correction.elapsedMS))").font(.caption).foregroundStyle(.secondary)
-                if let text = correction.text { ExpandableTranscript(text: text) }
-                if let error = correction.error { Text(error).font(.caption).foregroundStyle(.secondary) }
-                ForEach(correction.blocks.filter { $0.original != $0.proposed || !$0.note.isEmpty }) { block in
-                    DisclosureGroup("片段 \(block.id + 1) 的纠错建议") {
-                        Text("原文：\(block.original)").font(.caption)
-                        if let proposed = block.proposed {
-                            diff(original: block.original, revised: proposed).font(.caption).textSelection(.enabled)
-                            Text(block.applied == proposed ? "已应用" : "保留原文").font(.caption2)
-                        }
-                        Text(block.note).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-    private func diff(original: String, revised: String) -> Text {
-        TextDiff.edits(from: original, to: revised).reduce(Text("建议：")) { text, edit in
-            switch edit.kind {
-            case .unchanged: return text + Text(edit.text)
-            case .removed: return text + Text(edit.text).foregroundColor(.red).strikethrough()
-            case .added: return text + Text(edit.text).foregroundColor(.green).bold()
-            }
-        }
     }
 }

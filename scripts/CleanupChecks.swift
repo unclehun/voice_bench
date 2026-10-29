@@ -91,6 +91,9 @@ enum CleanupChecks {
         let legacy = physical.appendingPathComponent("LegacyTemporary", isDirectory: true)
         let store = try LocalStore(baseURL: appRoot, temporaryFiles: temp, documentsURL: documents,
                                    legacyTemporaryDirectory: legacy)
+        let credentials = DeepSeekCredentialStore(baseURL: appRoot)
+        try credentials.save("sk-synthetic-cleanup-key")
+        let credentialFile = try credentials.fileURL
         let item = try await store.importAudio(source)
         let second = try await store.importAudio(source)
         // Reproduce the user's delete path: successful inference already removed the work directory.
@@ -125,6 +128,10 @@ enum CleanupChecks {
             try put(legacy.appendingPathComponent(name))
         }
         try await store.removeAllData()
+        try require(!manager.fileExists(atPath: credentialFile.path), "Erase all retained DeepSeek API Key configuration")
+        try require(try credentials.read() == nil, "Erase all restored a deleted API Key")
+        let newCredentials = DeepSeekCredentialStore(baseURL: appRoot)
+        try require(try newCredentials.read() == nil, "Relaunch after erase all restored an API Key")
         // Exercise another clear with a dangling default folder; fileExists alone misses it.
         try manager.removeItem(at: store.defaultLanguageModelDirectory)
         try manager.createSymbolicLink(at: store.defaultLanguageModelDirectory, withDestinationURL: outside.appendingPathComponent("missing"))

@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import VoiceBenchCore
 
 struct BenchSettingsView: View {
     @ObservedObject var model: BenchViewModel
@@ -8,6 +9,7 @@ struct BenchSettingsView: View {
     @State private var qwenPicker = false
     @State private var funASRPicker = false
     @State private var confirmClear = false
+    @State private var deepSeekAPIKey = ""
 
     var body: some View {
         Form {
@@ -55,13 +57,32 @@ struct BenchSettingsView: View {
                 Text("约 1 GB；自动进行本地多语识别。配置完成后主界面识别会增加 Fun-ASR 引擎。")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("DeepSeek 公网纠错") {
+                status(DeepSeekTextCorrector.modelDisplayName, detail: model.deepSeekKeyStatus, ready: model.deepSeekKeyConfigured)
+                SecureField(model.deepSeekKeyConfigured ? "输入新的 API Key 以替换" : "DeepSeek API Key", text: $deepSeekAPIKey)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .disabled(!model.idle).accessibilityIdentifier("settings.deepseek.api-key")
+                Button(model.deepSeekKeyConfigured ? "更新 API Key" : "保存 API Key") {
+                    if model.saveDeepSeekAPIKey(deepSeekAPIKey) { deepSeekAPIKey = "" }
+                }
+                .disabled(!model.idle || deepSeekAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("settings.deepseek.save")
+                if model.deepSeekKeyConfigured {
+                    Button("删除 API Key", role: .destructive) { model.removeDeepSeekAPIKey(); deepSeekAPIKey = "" }
+                        .disabled(!model.idle)
+                }
+                Link("获取 DeepSeek API Key", destination: URL(string: "https://platform.deepseek.com/api_keys")!)
+                Text("保存后，点击纠错会同时运行 Apple 本地模型与 DeepSeek Flash（\(DeepSeekTextCorrector.model)，非思考模式）。仅识别文字和纠错背景通过 HTTPS 发送到 DeepSeek，不发送音频或人工参考稿；API 按用量计费。Key 保存在 App 私有数据目录，重启或覆盖更新后自动读取，不写入报告。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("数据管理") {
                 Button("清除全部本机数据与模型", role: .destructive) { confirmClear = true }.disabled(!model.idle)
-                Text("删除全部录音、识别、纠错、评测、模型和临时报告。移除 App 时选择“删除 App”才能一并删除数据。")
+                Text("删除全部录音、识别、纠错、评测、模型、临时报告和 DeepSeek API Key。删除 App 时，API Key 配置也随 App 数据一起删除。")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
+        .onDisappear { deepSeekAPIKey = "" }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("检查状态", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
@@ -92,10 +113,10 @@ struct BenchSettingsView: View {
             case .failure(let error): model.error = error.localizedDescription
             }
         }
-        .confirmationDialog("清除全部录音、结果和导入模型？", isPresented: $confirmClear, titleVisibility: .visible) {
+        .confirmationDialog("清除全部录音、结果、模型和 API Key？", isPresented: $confirmClear, titleVisibility: .visible) {
             Button("清除全部本机数据", role: .destructive) { model.clearAllData() }
         } message: {
-            Text("此操作不可撤销。也会释放本 App 的苹果语音资源预留；已导出副本、外部原件和苹果共享系统模型不在删除范围内。")
+            Text("此操作不可撤销，同时删除本机 DeepSeek API Key。也会释放本 App 的苹果语音资源预留；已导出副本、外部原件和苹果共享系统模型不在删除范围内。")
         }
     }
 

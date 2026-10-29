@@ -5,6 +5,8 @@
   "evaluation" : [
     {
       "correctedCER" : null,
+      "deepSeekCER" : null,
+      "deepSeekDeltaCER" : null,
       "deltaCER" : null,
       "rawCER" : {
         "deletions" : 1,
@@ -48,6 +50,7 @@
           "status" : "interrupted",
           "text" : null
         },
+        "deepSeekCorrection" : null,
         "engine" : "apple_speechtranscriber",
         "error" : "上次运行未正常结束，请重新执行。",
         "id" : "51D66D81-2885-4CAF-A45C-F5F995080971",
@@ -65,5 +68,5 @@
     "sampleRate" : 16000,
     "sha256" : "not-a-real-audio-hash"
   },
-  "schemaVersion" : 1
+  "schemaVersion" : 2
 }
