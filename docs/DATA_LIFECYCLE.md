@@ -26,7 +26,7 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 | 已保存录音及导入副本 | `Library/Application Support/VoiceBench/Audio` | 删除单条录音、清除全部或删除 App |
 | 转写、参考稿、背景、纠错和运行状态 | `Library/Application Support/VoiceBench/Records` | 与对应录音一起删除，或清除全部 / 删除 App |
 | 已导入 SenseVoice / VAD 模型及 receipt | `Library/Application Support/VoiceBench/Models` | 替换模型、清除全部或删除 App |
-| 已导入 Whisper Tiny / 独立 VAD 及 receipt | `Library/Application Support/VoiceBench/LanguageIDModels` | 替换 Whisper 模型、清除全部或删除 App |
+| 历史 Whisper Tiny / 独立 VAD 及 receipt | `Library/Application Support/VoiceBench/LanguageIDModels` | 0.6.0 不再载入；清除全部或删除 App |
 | 已导入 Qwen / tokenizer / 独立 VAD 及 receipt | `Library/Application Support/VoiceBench/QwenModels` | 替换 Qwen 模型、清除全部或删除 App |
 | 已导入 Fun-ASR-MLT / tokenizer / VAD 及 receipt | `Library/Application Support/VoiceBench/FunASRModels` | 替换 Fun-ASR 模型、清除全部或删除 App |
 | Fun-ASR 默认源目录（文件 App 可见） | `Documents/FunASR_MLT_Nano_INT8` | 清除全部或删除 App |
@@ -35,12 +35,13 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 | 默认模型源目录（文件 App 可见） | `Documents/SenseVoiceSmall_INT8` | 清除全部或删除 App |
 | 模型导入中间目录 | `Library/Application Support/VoiceBench/Import-UUID` | 导入结束，不论成功与否；异常退出则下次启动清理 |
 | 录制中的音频 | `tmp/VoiceBench/录音-UUID.m4a` | 保存流程结束，不论成功与否；录制失败也清理 |
-| 语言检测格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/LanguageID-UUID.caf` | 检测完成、失败或取消；冷启动兜底清理 |
+| 旧语言检测格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/LanguageID-UUID.caf` | 历史残留由冷启动或删除录音清理；0.6.0 不再创建 |
 | Fun-ASR 格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/FunASR-UUID.caf` | 成功、失败或取消后清理；冷启动兜底清理 |
 | Qwen 格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/Qwen-UUID.caf` | 成功、失败或取消后清理；冷启动兜底清理 |
 | 原有两引擎格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/UUID.caf` | 转写结束、失败或取消；转换失败自身也清理部分输出 |
 | 待分享 JSON / Markdown | `tmp/VoiceBench/Recording-录音UUID/Report-UUID` | 分享面板关闭后清理；生成失败立即清理 |
 | DeepSeek API Key | `Library/Application Support/VoiceBench/Credentials/deepseek-api-key.json` | 设置中删除 API Key、清除全部或删除 App；重启 / 覆盖更新保留 |
+| Apple 默认识别语言 | `Library/Application Support/VoiceBench/Settings/apple-speech.json` | 清除全部或删除 App；重启 / 覆盖更新保留，缺省为 `zh-CN` |
 
 冷启动会清空 `tmp/VoiceBench`，处理进程被终止时未能执行的清理；也清理旧版直接写在 `tmp` 下的已知命名临时文件。成功读取全部 metadata 后，会删除没有对应记录的音频副本。若 metadata 读取出错，不冒险删除可能仍有用的录音。
 
@@ -53,7 +54,7 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 1. 删除 VoiceBench 私有录音、metadata、模型、`Documents/SenseVoiceSmall_INT8`、`Documents/WhisperTiny_INT8`、`Documents/Qwen3ASR_0_6B_INT8`、`Documents/FunASR_MLT_Nano_INT8` 中的模型源文件和临时工作文件；随后仅重建空的固定目录。
 2. 清空界面中的记录、评测和分享引用，阻止旧的异步保存重新生成已删除记录。
 3. 调用 `AssetInventory.release(reservedLocale:)` 释放本 App 的苹果语音资源预留。
-4. 删除 API Key 配置文件和所在 Credentials 目录。配置文件与其他数据清理独立尝试；失败明确提示。刷新状态及重新打开 App 均显示未配置。
+4. 删除 API Key 配置文件和所在 Credentials 目录，并删除 Apple 默认语言配置、恢复中文。配置文件与其他数据清理独立尝试；失败明确提示。刷新状态及重新打开 App 均按缺省设置显示。
 
 该按钮在录音、识别、纠错、下载和分享期间不可用。App 私有文件的删除由 iOS 管理；主动清除会移除 API Key 配置及全部录音、结果和模型。
 
@@ -76,7 +77,7 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 
 `bash scripts/check_local.sh` 另外使用真实临时文件与实际 `LocalStore.removeAllData()` 验证 API Key 文件 / 目录删除、清除后重新读取为空，以及模拟删除整个 App 容器后重新安装仍未配置。测试不使用个人密钥。
 
-这些是文件生命周期测试，并不等于已经执行 iPhone 删除 / 重装或系统模型回收测试。真机可录音、识别、导出后清理，再确认列表为空、API Key 未配置、SenseVoice 和 Whisper 需重新导入；随后用系统“删除 App”并重新安装，确认没有原先的录音、结果和 API Key。
+这些是文件生命周期测试，并不等于已经执行 iPhone 删除 / 重装或系统模型回收测试。真机可录音、识别、导出后清理，再确认列表为空、API Key 未配置、Apple 默认语言为中文、SenseVoice 需重新导入；随后用系统“删除 App”并重新安装，确认没有原先的录音、结果和 API Key。
 
 
 ## 录音卡片的删除边界

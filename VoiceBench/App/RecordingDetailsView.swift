@@ -52,7 +52,7 @@ struct RecordingDetailsView: View {
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                             if let plan = run.languageDetection {
-                                DisclosureGroup("语言检测明细") {
+                                DisclosureGroup("历史语言检测明细") {
                                     ForEach(Array(plan.regions.enumerated()), id: \.offset) { _, region in
                                         Text(String(format: "%.1f–%.1f 秒 · %@", region.startSeconds, region.endSeconds,
                                                     region.language.map(LanguageRouting.name) ?? "未确定"))

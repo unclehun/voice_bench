@@ -47,7 +47,7 @@ actor PCMFileReader {
               endSeconds == nil || (endSeconds!.isFinite && endSeconds! > startSeconds) else {
             throw BenchError("派生音频片段的时间范围无效。")
         }
-        // The same shared boundary must map to the same frame in adjacent language regions.
+        // The same shared boundary must map to the same frame in adjacent PCM ranges.
         let first = AVAudioFramePosition((startSeconds * format.sampleRate).rounded())
         let last = min(input.length, AVAudioFramePosition((min(endSeconds ?? duration, duration) * format.sampleRate).rounded()))
         guard last > first else { throw BenchError("派生音频片段为空。") }

@@ -140,8 +140,11 @@ struct RunTranscriptView: View {
             if !run.rawText.isEmpty { ExpandableTranscript(text: run.rawText) }
             else { Text(run.status == .completed ? "未检测到语音" : "暂无文字").font(.subheadline).foregroundStyle(.secondary) }
             if let error = run.error { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
-            if let detection = run.languageDetection, !detection.languages.isEmpty {
-                Text("自动语言：\(detection.languages.map(LanguageRouting.name).joined(separator: "、"))")
+            if let identifier = run.configuration["apple_locale"] {
+                Text("识别语言：\(AppleSpeechSettings.displayName(identifier)) · 整段直接识别")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else if let detection = run.languageDetection, !detection.languages.isEmpty {
+                Text("历史自动语言：\(detection.languages.map(LanguageRouting.name).joined(separator: "、"))")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

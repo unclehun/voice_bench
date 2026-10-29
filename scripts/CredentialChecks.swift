@@ -73,6 +73,22 @@ struct CredentialChecks {
         try updated.save(key)
         try check(try updated.read() == key, "saving repairs corrupt configuration")
 
+        let appleSettings = AppleSpeechSettingsStore(baseURL: root)
+        try check(try appleSettings.load().localeIdentifier == "zh-CN", "missing Apple settings default to Chinese")
+        try check(!manager.fileExists(atPath: appleSettings.fileURL.path), "default Apple settings do not create a file on read")
+        try appleSettings.save(AppleSpeechSettings(localeIdentifier: "en_US"))
+        let reopenedSettings = AppleSpeechSettingsStore(baseURL: root)
+        try check(try reopenedSettings.load().localeIdentifier == "en-US", "Apple locale survives new instance and update")
+        let appleData = try Data(contentsOf: appleSettings.fileURL)
+        var invalidApple = AppleSpeechSettings(); invalidApple.localeIdentifier = "invalid locale"
+        try expectFailure({ try appleSettings.save(invalidApple) }, "invalid Apple setting must not save")
+        try check(try Data(contentsOf: appleSettings.fileURL) == appleData, "invalid Apple setting preserves previous selection")
+        try Data("invalid JSON".utf8).write(to: appleSettings.fileURL)
+        try expectFailure({ _ = try appleSettings.load() }, "corrupt Apple settings are not silently treated as a different selection")
+        try appleSettings.save(AppleSpeechSettings())
+        try check(try reopenedSettings.load().localeIdentifier == "zh-CN", "saving repairs Apple settings")
+        try check(try store.read() == key, "changing Apple locale does not affect the API key")
+
         // Removing the complete App data container removes the only copy of its configuration.
         let container = fixture.appendingPathComponent("UninstalledApp", isDirectory: true)
         let uninstallRoot = container.appendingPathComponent("Library/Application Support/VoiceBench", isDirectory: true)
@@ -90,6 +106,8 @@ struct CredentialChecks {
         let appRoot = fixture.appendingPathComponent("ClearAll/ApplicationSupport/VoiceBench", isDirectory: true)
         let clearCredentials = DeepSeekCredentialStore(baseURL: appRoot)
         try clearCredentials.save(key)
+        let clearAppleSettings = AppleSpeechSettingsStore(baseURL: appRoot)
+        try clearAppleSettings.save(AppleSpeechSettings(localeIdentifier: "en-US"))
         let local = try LocalStore(baseURL: appRoot,
                                   temporaryFiles: AppTemporaryFiles(root: fixture.appendingPathComponent("ClearAll/Temporary")),
                                   documentsURL: fixture.appendingPathComponent("ClearAll/Documents"))
@@ -97,6 +115,7 @@ struct CredentialChecks {
         try await local.removeAllData()
         try check(!manager.fileExists(atPath: clearCredentials.fileURL.path), "real clear all removes API key configuration")
         try check(try clearCredentials.read() == nil && DeepSeekCredentialStore(baseURL: appRoot).read() == nil, "status refresh and restart after clear all remain empty")
+        try check(!manager.fileExists(atPath: clearAppleSettings.fileURL.path) && clearAppleSettings.load().localeIdentifier == "zh-CN", "clear all removes Apple settings and resets default language")
         try check(try manager.contentsOfDirectory(atPath: appRoot.path).sorted() == ["Audio", "FunASRModels", "LanguageIDModels", "Models", "QwenModels", "Records"], "clear all leaves no credential files or directory")
         try clearCredentials.save(key)
         try await local.removeAllData()

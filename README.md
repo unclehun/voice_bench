@@ -1,15 +1,15 @@
 # VoiceBench · 语音对比
 
-简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8** 与 **Fun-ASR-MLT-Nano INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.5.3**。
+简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8** 与 **Fun-ASR-MLT-Nano INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.6.0**。
 
 当前交付包含 Swift 源码、生成的 Xcode 工程、锁定依赖、模型准备脚本、手动触发的 GitHub Actions 工作流和本地逻辑校验。云端仓库为 [unclehun/voice_bench](https://github.com/unclehun/voice_bench)，操作步骤见 [GitHub 云端编译](docs/GITHUB_ACTIONS.md)。**本地验证尚不包含 iOS SDK 编译或 iPhone 测试，实际云端构建状态以 Actions 为准。**验证边界见 [验证记录](docs/VALIDATION.md)。
 
 ## 功能
 
 - 录音、M4A / WAV 导入、播放、录音选择和删除。
-- 原有两套引擎保持原流程；载入 Qwen / Fun-ASR 后，每轮加入已配置的引擎，最多依次运行四套，详情页可单独测试任一引擎。
+- 四套引擎各自识别同一份原始录音；Apple 不再使用外部语言检测。载入 Qwen / Fun-ASR 后，每轮加入已配置的引擎，最多依次运行四套，详情页可单独测试任一引擎。
 - 同一源文件的 SHA-256、原始文本、分段时间、初始化时间、转写时间及 RTF。
-- 模型文件校验、Whisper Tiny 自动语言检测、苹果中英文资源准备、可用性检查、错误和取消状态。
+- 模型文件校验、Apple 默认识别语言设置及对应资源准备、可用性检查、错误和取消状态。
 - 原文及完成片段落盘，重启后把未完成任务标记为中断。
 - 私有目录保存数据，清理临时文件与异常退出残留；提供“清除全部本机数据与模型”。
 - 人工参考稿计算 CER；JSON 和 Markdown 系统分享导出。
@@ -21,7 +21,7 @@
 - 卡片点击 **识别**，依次运行 SenseVoice、Apple，再运行已载入的 Qwen、Fun-ASR，展示本轮结果；未载入这两套时继续原有双引擎流程。每轮结果归为一个 batch，新一轮排队时不会拼上旧一轮的文字或纠错；历史记录在 **详情** 中保留。
 - 点击卡片 **开始纠错**，依次处理本轮成功识别的非空文本；每份文字同时交给 Apple 本地与 DeepSeek 公网模型。结果区域自动展开，按识别引擎及纠错模型分别显示文字、状态、耗时和错误。整行 **查看纠错结果与状态 / 收起纠错结果** 只控制展示，重新执行放在独立的 **更多操作 → 重新运行两路纠错** 菜单中。
 - 卡片可播放 / 停止音频、删除整条录音。删除会清理该录音的音频、全部历史识别与纠错、参考稿、背景和内部临时工作文件，保留其他录音与共享模型。
-- **设置** 集中管理 SenseVoice / Whisper / Qwen / Fun-ASR 默认目录及手工导入、Apple 语言资源、纠错可用性、DeepSeek API Key 和全部数据清理，可通过系统返回按钮回主界面。
+- **设置** 集中管理 SenseVoice / Qwen / Fun-ASR 默认目录及手工导入、Apple 默认识别语言与资源、纠错可用性、DeepSeek API Key 和全部数据清理，可通过系统返回按钮回主界面。
 - **详情** 保留参考稿、纠错背景、CER、JSON / Markdown 导出、历史运行明细和单引擎调试入口。
 
 ### DeepSeek 公网纠错
@@ -52,7 +52,7 @@ Apple Speech 重复报 `Foundation._GenericObjCError Code=0` 时，新版采用�
 - `.tools/xcodegen/`：项目内的 XcodeGen 2.44.1，不是 Xcode。
 - `Models/FunASR_MLT_Nano_INT8/`：完整 MLT 版 ONNX INT8、tokenizer、VAD、许可证及 manifest，约 1.01 GB（不提交 Git，也不进入 IPA）。
 - `Models/Qwen3ASR_0_6B_INT8/`：完整 Qwen、tokenizer、VAD、许可证和 manifest，约 988 MB（不提交 Git，也不进入 IPA）。
-- `Models/WhisperTiny_INT8/`：Whisper Tiny 多语种 INT8 语言检测模型、独立 VAD、许可证及 manifest，约 103 MB（不提交 Git）。
+- `Models/WhisperTiny_INT8/`：旧流程准备的语言检测模型（约 103 MB，不提交 Git）；0.6.0 不再载入或调用，新设备不需要准备。
 - `Models/VoiceBenchModels/`：准备好的手机模型导入目录，含权重、tokens、VAD、许可证和 manifest（不提交 Git）。
 
 各工作目录是否存在取决于当前机器是否已执行准备脚本；新克隆可用以下命令重新准备。
@@ -67,7 +67,7 @@ Apple Speech 重复报 `Foundation._GenericObjCError Code=0` 时，新版采用�
 bash scripts/check_local.sh
 ```
 
-该命令用系统 `swiftc` 编译实际核心代码，再检查 CER、Unicode、空参考稿、字符 diff、取消和报告，以及使用 URLProtocol 模拟响应的 DeepSeek 请求 / 错误 / 取消和持久化测试，并用真实临时文件验证 API Key 配置文件保存、新实例读取、删除及实际完整数据清除；不使用真实密钥或访问真实 API，不依赖 XCTest 或 iOS SDK。正式 XCTest 保留在 `Tests/VoiceBenchCoreTests`，有完整 Xcode 的机器运行 `swift test`。
+该命令用系统 `swiftc` 编译实际核心代码，再检查 CER、Unicode、空参考稿、字符 diff、取消和报告，以及使用 URLProtocol 模拟响应的 DeepSeek 请求 / 错误 / 取消和持久化测试，并用真实临时文件验证 API Key、Apple 默认语言配置、新实例读取及实际完整数据清除；不使用真实密钥或访问真实 API，不依赖 XCTest 或 iOS SDK。正式 XCTest 保留在 `Tests/VoiceBenchCoreTests`，有完整 Xcode 的机器运行 `swift test`。
 
 音频转换 / 保存测试使用真实 AVFoundation，不录制麦克风：
 
@@ -152,36 +152,17 @@ SenseVoiceSmall_INT8/
 
 App 在导入时校验所选内容与内置 `model-manifest.json` 一致；验证通过后替换模型目录。只支持本 Demo 指定的模型版本，损坏文件或其他同名模型会被拒绝。
 
-### Whisper Tiny 自动语言检测（方案 B）
+### Apple Speech 整段直接识别
 
-本机已经准备好 `Models/WhisperTiny_INT8`；可重复校验或在新机器准备：
+0.6.0 移除 Apple 前置的 Whisper Tiny 语言检测与语言区间路由。Apple 和其他模型各自接收同一份原始录音；Apple 仅做系统所需音频格式转换，通过逐块 PCM 将完整录音送入一个 SpeechAnalyzer 会话。没有外部语言识别、没有按猜测语言切换模型，也无需准备 Whisper 文件。
 
-```sh
-python3 scripts/prepare_language_models.py
-```
+[SpeechTranscriber 官方初始化接口](https://developer.apple.com/documentation/speech/speechtranscriber/init(locale:transcriptionoptions:reportingoptions:attributeoptions:)) 仍要求 locale。因此在 **设置 → Apple Speech → 默认识别语言** 选择语言，缺省为 **中文（中国大陆）/ zh-CN**，选项从系统支持列表读取。点击 **准备默认语言的苹果资源**，只准备该语言；资源就绪后支持本地识别。多语言支持不等于无需 locale 的自动识别，中英混读在同一 locale 下的表现需要真机实测。
 
-使用多语种 **tiny**，不是仅英语的 `tiny.en`。下载固定 Hugging Face revision 的 encoder / decoder INT8，并复用经过校验的 Silero VAD；现有同名文件哈希不一致时拒绝覆盖。模型文件总计 103,437,027 字节，不放入 Git 或 IPA，不增加构建时下载。
+设置保存到 App 私有目录 `Library/Application Support/VoiceBench/Settings/apple-speech.json`，重启及保留数据的覆盖更新继续使用；清除全部后恢复中文。切换语言立即重新检查资源状态，识别期间禁用修改。每次运行开始时捕获 locale，报告同时记录请求值与系统实际选择值。
 
-将整个目录传入 **文件 → 在我的 iPhone → 语音对比（或 VoiceBench）→ WhisperTiny_INT8**。首次启动新版 App 会创建此空目录；将文件放在目录内，避免变成 `WhisperTiny_INT8/WhisperTiny_INT8/` 双层目录。
+原有历史识别与语言检测明细仍能读取和导出；已有 Whisper 文件不会自动删除，“清除全部”仍覆盖旧目录。旧版的模型准备脚本、存储兼容方法和校验样例仅用于历史资源维护，不在新识别流程调用。
 
-```text
-WhisperTiny_INT8/
-  tiny-encoder.int8.onnx
-  tiny-decoder.int8.onnx
-  silero_vad.onnx
-  manifest.json
-  LICENSE
-  VAD_LICENSE
-  SOURCE.txt
-```
-
-三个 ONNX 为必需文件。启动 App 或点击“检查状态”会自动导入一次；手工更新目录后点“从默认 Whisper 目录载入”。也支持“选择其他 Whisper 目录…”从文件选择器授权读取，复制并验证后持续使用内部副本；重启无需再选目录。Whisper 与 SenseVoice 存放在独立内部目录，互相替换不会删除另一套。两类导入均严格校验内置 manifest。
-
-Apple 运行流程：整段音频转 16 kHz → Silero 找语音 → 每段按约 5 秒窗口检测语言（不足 1 秒的尾部并入前窗）→ 按时长投票选择该语音段语言 → 合并相邻同语言段 → 使用对应的系统 SpeechTranscriber 输出文字。短语音标记 `short_input`；有多种明显语言票的片段标记 `mixed_dominant`；没有校准后的置信度，不能将投票比例冒充概率。Whisper 仅判语言，不生成 Apple 的转写文字。SenseVoice 固定使用自身 `auto` 检测，无需手工设置语言，只运行 SenseVoice 时不要求 Whisper。
-
-按自然语音片段选择主要语言，适合整段中文、整段英文、句间语言切换；句内快速中英混说不等于逐词路由，仍需实测。详细检测窗口、路由、语言标签、模型哈希与耗时写入报告；Apple 的转写耗时与 RTF 包含语言检测的处理时间，初始化另计。纯静音没有语音路由，返回空结果。
-
-苹果资源单独点“准备苹果语言资源”，首次联网准备中文和英文。检测出其他语言而未安装资源时，本次明确失败并保留检测计划；再次点此按钮会加入当前录音最后一次 Apple 运行检测到的语言。系统不支持的语言明确报错，不回退中文或云端 ASR。资源就绪后，开启飞行模式并关闭 Wi-Fi，重启 App，再验证双引擎。新流程的本地验证范围见 [验证记录](docs/VALIDATION.md)。
+用现有十条录音重新运行“仅 Apple”，重点比较中英混读、短标题、空白录音、长录音、取消和后台恢复，再与其他三套重新计算 CER。旧评比报告反映的是外部语言路由链路，不能当作新流程的准确率结果。
 
 ### Qwen3-ASR 0.6B INT8（第三套识别引擎）
 
@@ -194,7 +175,7 @@ python3 scripts/prepare_qwen_models.py --verify-only
 
 把完整文件夹传到 **文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_INT8**，保留 `tokenizer` 子目录。打开 App 或点设置中的“检查状态”自动载入；也可“从默认目录载入 Qwen3-ASR”或“选择其他 Qwen3-ASR 目录…”。文件树、空间要求和真机验收见 [Qwen 接入说明](docs/QWEN_ASR.md)。
 
-Qwen 独立直接转写多语言，不使用 Whisper 的语言标签或 Apple 的语言资源。载入后卡片“识别”自动加入第三套；详情 → 调试运行 → “仅 Qwen3-ASR”可独立测试。原有 SenseVoice、Whisper、Apple 和纠错引擎实现未修改。
+Qwen 独立直接转写多语言，不使用 Apple 的语言资源。载入后卡片“识别”自动加入第三套；详情 → 调试运行 → “仅 Qwen3-ASR”可独立测试。默认语言选项只影响 Apple，其他三套引擎仍使用各自模型的自动多语能力。
 
 ### Fun-ASR-MLT-Nano INT8（第四套识别引擎）
 
@@ -213,7 +194,7 @@ python3 scripts/prepare_funasr_models.py --verify-only
 
 先不做纠错，分别测试安静普通话、专名 / 数字 / 否定词、中英混说、噪声和长录音。点击卡片“识别”后依次运行各套引擎，并分别保存结果。
 
-- `RTF = transcriptionMS / 1000 / audioDurationSeconds`；转写包括格式转换、VAD、Whisper 语言检测（Apple 路径）、推理和拼接。首次模型下载不计入 RTF，初始化单独记录。
+- `RTF = transcriptionMS / 1000 / audioDurationSeconds`；转写包括各引擎所需格式转换、切分、推理和拼接。Apple 新流程不再包含 Whisper 时间；旧报告仍保留历史口径。首次模型下载不计入 RTF，初始化单独记录。
 - CER 使用 Unicode scalar 编辑距离，移除标点和空白、统一 ASCII 英文字母大小写；不统一简繁、数字写法或语义。
 - 没有参考稿时 CER 为 null；规范化后空参考稿保留字数和编辑计数、rate 为 null。
 - 未完成 ASR 不计为完整 CER / RTF。纠错不可用、取消或失败时不复制原文冒充成功结果。
@@ -225,9 +206,9 @@ python3 scripts/prepare_funasr_models.py --verify-only
 
 删除与备份行为见 [数据清理说明](docs/DATA_LIFECYCLE.md)。在 iPhone 设置中须选择 **“删除 App”**；**“卸载 App”会保留数据**。App 私有录音、结果和模型随删除移除；导出副本、导入原件及苹果共享系统模型不属于 App 私有数据。
 
-- **本次 DeepSeek 更新尚未通过 iOS SDK 编译、真实 API 或真机验证。**本地语法和跨平台类型检查不能替代它。
+- **本次 Apple 整段识别更新尚未通过 iOS SDK 编译或真机验证。**之前十段实测基于旧语言路由流程，不能用于评价新流程。本地语法和跨平台类型检查不能替代真机验证。
 - 前台任务为主。后台或系统音频中断会结束任务，保留已完成片段；重新运行会创建新记录，没有断点续跑。
-- 原生 SenseVoice / Whisper 取消在原生推理调用之间生效，当前调用期间可能要等待。
+- 原生 SenseVoice 取消在原生推理调用之间生效，当前调用期间可能要等待。
 - SenseVoice 使用原默认配置：2 线程 / 25 秒分段上限、自动检测语言。Fun-ASR 使用独立的上下文预算与低能量重分段策略，见接入说明。
 - 为避免边界重复，后段保护区裁剪到前段结束，记录真实采用范围；尚无精确逐字时间戳或语义去重。
 - LLM 纠错按 400 字分块，附相邻上下文；没有实现上下文超限后的自适应缩块重试。失败块保留原文并记录错误，可单独重试整次纠错。

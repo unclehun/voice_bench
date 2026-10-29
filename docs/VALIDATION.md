@@ -1,5 +1,15 @@
 # 验证记录
 
+## 2026-10-29：Apple 整段识别与默认语言（0.6.0）
+
+- 移除 Apple 前置 Whisper 检测 / 分段路由、启动自动导入、就绪依赖、设置页模型入口及检测引擎实现。Apple 只转换系统要求的音频格式，在一个 analyzer 会话中输入完整录音；保留有界 PCM 拉取、真实 EOF、取消、结果流消费、临时文件清理与错误链。SenseVoice、Qwen、Fun-ASR 引擎未修改。
+- [Apple 官方初始化接口](https://developer.apple.com/documentation/speech/speechtranscriber/init(locale:transcriptionoptions:reportingoptions:attributeoptions:)) 仍要求 locale。设置页新增默认识别语言，缺省 `zh-CN`，选项取自系统支持列表。仅检查 / 准备选定语言资源，异步状态检查不会把旧选择覆盖到新选择；运行开始时捕获所选 locale，忙碌时禁止修改。
+- 语言保存在 App 私有 `Settings/apple-speech.json`，原子写入，重启 / 覆盖更新读取；清除全部恢复中文，并与 API Key 相互隔离。新报告记录 `requested_locale`、`apple_locale`、`pcm_full_recording_v3`、`configured_locale_full_recording_v1`、`apple_external_language_detection=false`、`apple_audio_scope=full_recording` 和会话数，不再填语言检测计划 / `lid_*`。旧记录和历史明细继续兼容，旧模型目录仍由全量清理覆盖。
+- `bash scripts/check_apple_speech.sh` 通过 **34,479 项核心断言、50 项纠错检查、38 项配置文件检查**，以及真实 Int16 / Float32 完整 PCM 尾块 / EOF / 重采样、可选范围、取消、底层错误链和诊断报告检查。新增检查覆盖 locale 默认 / 规范化 / 非法值拒绝、完整录音配置、报告持久化和历史字段兼容、语言设置重启读取、损坏配置、无效保存保留旧值、与 API Key 隔离及实际清除全部恢复缺省。测试中修正了正则末尾锚点可接受尾随换行的问题。
+- **尚未进行本次 iOS SDK 完整编译或 iPhone SpeechAnalyzer / 新 Picker / 中英混读验收**。之前十段真机报告针对旧路由链路，不代表新流程准确率；新流程不保证某个 locale 下自动获得多语最优结果。
+
+真机验收：设置默认中文并准备资源 → 不配置 Whisper 运行“仅 Apple” → 复测十条录音，特别是原先误判 fi / ja / ko 的片段 → 检查新报告没有前置 LID 字段、时间范围覆盖整条、会话数为 1。再切换英文准备资源，确认重启 / 覆盖更新保留选择；验证取消、后台、空音频、长音频、清除全部恢复中文，并重新与其他三模型计算 CER。
+
 ## 2026-10-29：DeepSeek 并行纠错与配置文件（0.5.3）
 
 此前的纠错功能修改尚未编译或在用户真机运行，本节按最终实现记录验证范围。

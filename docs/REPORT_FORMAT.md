@@ -17,8 +17,8 @@
 | `runs[].transcriptionMS` | 格式转换、切分、推理、拼接耗时；仅完成时记录完整值 |
 | `runs[].rawText` | 原始识别文字，未做 LLM 修改 |
 | `runs[].segments[]` | 片段文本、实际起止秒数；不是跨引擎统一逐字时间戳 |
-| `runs[].languageDetection` | 可选；Whisper 模型版本、策略、初始化 / 检测时间、语音段的窗口标签与最终路由；旧记录没有此字段也可读取 |
-| `runs[].segments[].language` | 可选；Apple 实际采用的语言或 SenseVoice 返回的标签，不是逐词语言标注 |
+| `runs[].languageDetection` | 历史可选字段；保留旧 Whisper 检测计划的读取与导出，0.6.0 新 Apple 运行不填此字段 |
+| `runs[].segments[].language` | 可选；新 Apple 记录所选 locale 的语言代码，SenseVoice 记录模型标签；不是片段语言检测结论或逐词语言标注 |
 | `runs[].configuration` | 实际引擎配置、模型文件哈希、当时设备环境 |
 | `runs[].correction` | Apple 本地纠错的状态、模型、提示版本 / 哈希、用户背景、输出、分块建议与采用文字；沿用 v1 字段 |
 | `runs[].deepSeekCorrection` | DeepSeek 公网纠错，同样的 Correction 结构；旧记录缺省可读取，未请求时导出 null |
@@ -36,7 +36,21 @@
 Apple Speech 的成功和失败记录现在都会在 `configuration` 中保存 `apple_*` 诊断字段，包含输入格式、帧数、阶段和底层错误；字段含义与 USB 采集步骤见 [Apple Speech 调试](APPLE_SPEECH_DEBUG.md)。
 
 
-方案 B 的 Apple 路径：`preparationMS` 包含 Whisper 和各 Apple 会话初始化；`transcriptionMS` 包含语言检测格式转换、VAD、检测推理、Apple 格式转换与全部会话处理。`languageDetection.preparationMS` / `detectionMS` 可单独查看检测成本。若 Apple 在检测之后失败，计划和检测的部分耗时仍保留，但不计算完整 RTF。
+0.6.0 的 Apple 路径：整份原始录音按系统兼容格式转换，再交给一个 SpeechAnalyzer 会话；不做前置语言检测或语言区间切分。`preparationMS` 记录 analyzer 初始化；`transcriptionMS` 包括格式转换、资源检查及实际识别，排除初始化，不再累加 Whisper 时间。
+
+| 新 Apple configuration 字段 | 含义 |
+|---|---|
+| `requested_locale` | 本次开始时捕获的设置值，默认 `zh-CN` |
+| `apple_locale` | 系统解析后的实际 locale，如 `zh_CN`；检查资源失败时也保留 |
+| `apple_input_pipeline` | `pcm_full_recording_v3` |
+| `apple_language_strategy` | `configured_locale_full_recording_v1` |
+| `apple_external_language_detection` | 固定 `false` |
+| `apple_audio_scope` | 固定 `full_recording` |
+| `apple_session_count` | 未创建 analyzer 时为 `0`，创建后为 `1` |
+
+新运行不写入 `lid_*`、`apple_locale_routes` 或 `languageDetection`。默认语言设置独立保存在 App 的 `Settings/apple-speech.json`，报告仅记录当次实际使用的值，不会随用户后续修改而变化。
+
+以下为旧 `pcm_language_regions_v2` 报告的解释：`preparationMS` 包含 Whisper 和各 Apple 会话初始化；`transcriptionMS` 包含语言检测格式转换、VAD、检测推理、Apple 格式转换与全部会话处理。`languageDetection.preparationMS` / `detectionMS` 可单独查看检测成本。若 Apple 在检测之后失败，计划和检测的部分耗时仍保留，但不计算完整 RTF。
 
 `regions[].decision` 为 `detected` / `short_input` / `mixed_dominant` / `undetermined`，`observedLanguages` 是窗口标签集合，不是置信度候选。单个 VAD 段出现多种语言时，按窗口语音时长投票选主要语言；并列优先前段语言，否则最早窗口。相邻同语言可合并，Apple 会话最长约 120 秒。`spans[].windows[]` 保留所有窗口秒数和标签，用于诊断后段切换及误判。短于 1 秒的检测证据会警示，未确定语言会明确失败。静音没有路由。
 

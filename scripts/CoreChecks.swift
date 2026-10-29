@@ -49,6 +49,26 @@ let flag = CancellationFlag()
 try flag.check(); flag.cancel()
 do { try flag.check(); check(false, "cancel should throw") } catch is CancellationError { check(true, "cancellation") }
 
+let defaultAppleSettings = AppleSpeechSettings()
+check(defaultAppleSettings.localeIdentifier == "zh-CN", "Apple default locale is Chinese")
+let englishAppleSettings = try AppleSpeechSettings(localeIdentifier: "en_US")
+check(englishAppleSettings.localeIdentifier == "en-US", "Apple settings normalize locale separators")
+for invalid in ["", "auto", "en-US\n", "../../settings", "zh CN"] {
+    do { _ = try AppleSpeechSettings(localeIdentifier: invalid); check(false, "invalid Apple locale must throw") }
+    catch { check(true, "invalid Apple locale rejected") }
+}
+var directApple = Run(engine: .apple)
+directApple.status = .completed; directApple.rawText = "Hello，你好。"
+directApple.configuration = englishAppleSettings.runConfiguration
+directApple.configuration["apple_locale"] = "en_US"
+check(directApple.languageDetection == nil, "direct Apple run has no external language plan")
+check(directApple.configuration["apple_audio_scope"] == "full_recording" && directApple.configuration["apple_external_language_detection"] == "false", "direct Apple submits full recording without language detection")
+check(directApple.configuration["requested_locale"] == "en-US" && !directApple.configuration.keys.contains(where: { $0.hasPrefix("lid_") }), "Apple report uses selected locale without LID measurements")
+var directRecording = recording; directRecording.runs = [directApple]
+let directRestored = try JSONDecoder().decode(Recording.self, from: JSONEncoder().encode(directRecording))
+check(directRestored.runs[0].languageDetection == nil && directRestored.runs[0].configuration["apple_locale"] == "en_US", "direct Apple locale persists without a fabricated detection result")
+check(Report(recording: directRecording, environment: [:]).markdown().contains("Apple 识别语言：en_US；整段直接识别"), "Markdown identifies direct Apple mode")
+
 // Exhaustive short-string cross-check against an independent full-matrix edit distance.
 func distance(_ a: [Character], _ b: [Character]) -> Int {
     var matrix = Array(repeating: Array(repeating: 0, count: b.count + 1), count: a.count + 1)

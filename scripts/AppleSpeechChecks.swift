@@ -76,7 +76,7 @@ struct AppleSpeechChecks {
         }
         await convertedReader.close()
 
-        // Each language region starts its analyzer at zero, while saved results use source offsets.
+        // Generic PCM range reads remain supported independently of Apple's full-recording mode.
         let ranged = try PCMFileReader(url: converted, format: int16, cancellation: CancellationFlag(),
                                        startSeconds: 1.25, endSeconds: 2.00001)
         var regionFrames: Int64 = 0
@@ -150,7 +150,7 @@ struct AppleSpeechChecks {
               decoded.recording.runs[0].configuration["apple_input_eof"] == "true" else {
             throw BenchError("Exported report lost Apple Speech diagnostics")
         }
-        print("PASS: PCM Int16/Float32 tails, exact EOF, language-region offsets and tails, invalid ranges, distinct buffers, real Int16 resampling, empty input, cancellation, underlying errors and diagnostic report export. SpeechAnalyzer/iOS not executed.")
+        print("PASS: full-recording PCM Int16/Float32 tails, exact EOF, optional range offsets and tails, invalid ranges, distinct buffers, real Int16 resampling, empty input, cancellation, underlying errors and diagnostic report export. SpeechAnalyzer/iOS not executed.")
     }
 }
 

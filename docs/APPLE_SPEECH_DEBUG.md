@@ -1,6 +1,6 @@
 # Apple Speech 调试
 
-针对真机重复出现的 `Foundation._GenericObjCError Code=0`，Apple 输入路径改为 `pcm_chunks_v1`。此次修改是绕过文件输入辅助路径并补充诊断，是否解决真机错误需要新 IPA 验证。
+0.6.0 的 Apple 输入路径为 `pcm_full_recording_v3`：移除 Whisper 语言检测与语言区间路由，按设置中的默认 locale 使用一个 SpeechAnalyzer 识别完整录音。保留原有逐块 PCM、EOF、取消和错误链诊断；默认语言为 `zh-CN`。
 
 ## 输入与结束方式
 
@@ -27,17 +27,20 @@ idevicesyslog -p 'VoiceBench|localspeechrecognition' -o /tmp/voicebench-apple-sp
 rg 'VoiceBenchAppleSpeech' /tmp/voicebench-apple-speech.log
 ```
 
-正常事件主要为 `check_support` → `check_assets` → `select_format` → `prepare_analyzer` → `inspect_source` → `convert_audio` → `open_pcm` → `analyze_audio` → `input_eof` → `input_consumed` → `finalize_analysis` → `collect_results` → `cleanup_audio` → `completed`。并发的 `results_ended` 可能更早出现。
+正常事件主要为 `inspect_source` → `check_assets` → `convert_audio` → `check_support` → `prepare_analyzer` → `open_pcm` → `analyze_audio` → `input_eof` → `input_consumed` → `finalize_analysis` → `collect_results` → `cleanup_audio` → `completed`。错误还可能标为 `select_locale` / `select_format`；并发的 `results_ended` 可能更早出现。
 
 `input_progress` 只在首块、每 256 块及不足 4096 帧的尾块记录，不逐块刷屏。统一日志公开阶段、格式、计数和错误 domain/code，不记录音频样本或识别文字。
 
 ## 导出报告
 
-无论成功或失败，导出的 JSON 都会在 `recording.runs[].configuration` 保存诊断。报告 schema 仍为 v1，原有记录可以继续读取。主要字段如下：
+无论成功或失败，导出的 JSON 都会在 `recording.runs[].configuration` 保存诊断。报告 schema 为 v2，原有记录可以继续读取。主要字段如下：
 
 | 字段 | 用途 |
 |---|---|
-| `apple_input_pipeline` | 应为 `pcm_chunks_v1`，确认安装了新构建 |
+| `apple_input_pipeline` | 新运行应为 `pcm_full_recording_v3` |
+| `requested_locale` / `apple_locale` | 设置中的请求语言与系统解析后的实际 locale |
+| `apple_language_strategy` / `apple_external_language_detection` | 应为 `configured_locale_full_recording_v1` / `false` |
+| `apple_audio_scope` / `apple_session_count` | 应为 `full_recording`；创建 analyzer 后会话数为 `1` |
 | `apple_run_id` / `apple_stage_events` | 关联 USB 日志；保留最近 64 个阶段事件及相对时间 |
 | `apple_selected_format` / `apple_file_format` / `apple_processing_format` | 比较系统要求、存储和实际输入格式 |
 | `apple_total_frames` / `apple_read_frames` / `apple_input_eof` | 验证是否完整读取，不能把已读帧数单独当成系统已完成分析 |
@@ -53,7 +56,7 @@ rg 'VoiceBenchAppleSpeech' /tmp/voicebench-apple-speech.log
 
 ## 真机复测
 
-使用此前失败的同一条录音运行“仅 Apple”，导出 JSON，核对 pipeline 和运行 ID，再运行一条新录音。取消和再次运行各做一次，检查临时文件清理标记。
+在设置确认默认语言、准备该语言资源，再使用此前失败的同一条录音运行“仅 Apple”。导出 JSON，核对 pipeline、locale、运行 ID 和会话数；不应出现新的 `lid_*`、`apple_locale_routes` 或 `languageDetection`。再运行一条新录音。取消和再次运行各做一次，检查临时文件清理标记。
 
 - 新路径成功：支持文件输入辅助路径与该系统版本之间存在兼容问题的判断。
 - `read_audio` 失败：结合位置和总帧数检查派生文件读取。
@@ -71,9 +74,9 @@ bash scripts/check_apple_speech.sh
 检查真实 AVAudioFile／AVAudioConverter 的 Int16 和 Float32 读写，包含 141,973 帧的重现边界、精确整块末尾、独立缓冲区、空文件、取消，以及错误链和报告序列化。该命令可在当前仅安装 Command Line Tools 的 Mac 上运行；它不包含 SpeechAnalyzer 或 iPhone 测试。GitHub Actions 已加入同一检查，之后仍会用真实 iOS SDK 编译 App。
 
 
-## 方案 B：自动语言检测的新增诊断
+## 历史方案 B 报告的诊断
 
-新版 `apple_input_pipeline=pcm_language_regions_v2`，在原有逐块 EOF 处理之上按语言片段运行。先完成独立 Whisper Tiny 语言检测，并释放原生模型，再创建 Apple 会话。同一兼容格式的派生音频在本次运行内复用，所有会话结束或失败后统一清理。每个 PCM 区间使用从零开始的帧时间，保存文字时加回源音频偏移。
+以下仅用于解释 0.5.3 及以前的历史记录。旧 `apple_input_pipeline=pcm_language_regions_v2` 在逐块 EOF 处理之上按语言片段运行，先完成 Whisper Tiny 语言检测再创建 Apple 会话；0.6.0 不再执行该流程。
 
 语言检测 category 为 `LanguageID`、日志前缀 `VoiceBenchLanguageID`。窗口日志只含 run ID、起止秒数、语言代码、窗口数和耗时，不记录语音或转写文本。可同时过滤两类事件：
 
@@ -83,4 +86,4 @@ rg 'VoiceBench(LanguageID|AppleSpeech)' /tmp/voicebench-apple-speech.log
 
 先核对 `languageDetection.spans[].windows` 与 `regions` 是否符合实际语言，再查 `apple_locale_routes`、`apple_range_first_frame` / `apple_range_end_frame` 和 `apple_read_frames`。新版本 `apple_read_frames` 是当前区间内读到的帧数；`apple_total_frames` 仍为整份派生文件长度。`apple_final_segments` 在会话内记录当前会话结果数，完成时记录合计。多区间时通用格式 / 帧字段保留最后处理区间，全部区间路由见计划和 `apple_locale_routes`。
 
-缺资源的错误不应反复重新导入模型：点击“准备苹果语言资源”，下载当前录音最后一次 Apple 检测计划涉及的语言后再运行。Whisper 初始化或检测错误会保存 `lid_error_stage/domain/code`、完成窗口数和已用时间。
+旧 Whisper 初始化或检测错误记录 `lid_error_stage/domain/code`、完成窗口数和已用时间。0.6.0 的资源准备只针对设置中的默认语言，不读取这些历史检测结果。

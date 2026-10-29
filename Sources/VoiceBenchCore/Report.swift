@@ -88,6 +88,9 @@ public struct Report: Codable, Sendable {
                 if correction.hasResult, let corrected = correction.text { lines += ["", "纠错文字：", "", corrected] }
                 if let error = correction.error { lines += ["", "纠错错误：\(error)"] }
             }
+            if let locale = run.configuration["apple_locale"] {
+                lines += ["", "Apple 识别语言：\(locale)；整段直接识别；无外部语言检测。"]
+            }
             if let detection = run.languageDetection {
                 lines += ["", "语言检测：\(detection.model)；初始化 \(format(detection.preparationMS)) ms；检测 \(format(detection.detectionMS)) ms"]
                 for region in detection.regions {

@@ -5,7 +5,6 @@ import VoiceBenchCore
 struct BenchSettingsView: View {
     @ObservedObject var model: BenchViewModel
     @State private var sensePicker = false
-    @State private var whisperPicker = false
     @State private var qwenPicker = false
     @State private var funASRPicker = false
     @State private var confirmClear = false
@@ -23,19 +22,18 @@ struct BenchSettingsView: View {
                 Text("SenseVoice 自动检测录音语言，无需手动选择。")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section {
-                status("Whisper Tiny INT8 · 自动语言检测", detail: model.languageModelDetail, ready: model.languageModelReceipt != nil)
-                Button("从默认目录载入 Whisper") { model.importLanguageModels() }.disabled(!model.idle)
-                Button("选择其他 Whisper 目录…", systemImage: "folder") { whisperPicker = true }.disabled(!model.idle)
-                Text("文件 → 在我的 iPhone → 语音对比 → WhisperTiny_INT8。需要 encoder、decoder 和 silero_vad 三个 ONNX 文件。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section {
+            Section("Apple Speech") {
+                Picker("默认识别语言", selection: Binding(get: { model.appleLocaleIdentifier }, set: model.setAppleLocaleIdentifier)) {
+                    ForEach(model.appleLocaleOptions, id: \.self) { identifier in
+                        Text("\(AppleSpeechSettings.displayName(identifier)) · \(identifier)").tag(identifier)
+                    }
+                }
+                .disabled(!model.idle).accessibilityIdentifier("settings.apple.locale")
                 status("Apple Speech", detail: model.speech.detail, ready: model.speech.installed)
                 if model.speech.available {
-                    Button("准备苹果语言资源（需要联网）") { model.prepareApple() }.disabled(!model.idle)
+                    Button("准备默认语言的苹果资源（需要联网）") { model.prepareApple() }.disabled(!model.idle)
                 }
-                Text("默认准备中文、英文；检测到其他语言后可再次准备。识别时自动检测语言，句内混说按片段主要语言处理。")
+                Text("默认中文（中国大陆）。Apple 直接识别整段录音，不做前置语言检测或语言分段；切换语言后会检查对应资源。语言选择保存在 App 数据目录，重启和覆盖更新后继续使用。")
                     .font(.caption).foregroundStyle(.secondary)
                 status("本地文字纠错", detail: model.correctionUnavailable ?? "系统文字模型可用", ready: model.correctionUnavailable == nil)
             }
@@ -77,7 +75,7 @@ struct BenchSettingsView: View {
             }
             Section("数据管理") {
                 Button("清除全部本机数据与模型", role: .destructive) { confirmClear = true }.disabled(!model.idle)
-                Text("删除全部录音、识别、纠错、评测、模型、临时报告和 DeepSeek API Key。删除 App 时，API Key 配置也随 App 数据一起删除。")
+                Text("删除全部录音、识别、纠错、评测、模型、临时报告和 DeepSeek API Key，默认识别语言恢复中文。删除 App 时，配置随 App 数据一起删除。")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -92,12 +90,6 @@ struct BenchSettingsView: View {
         .fileImporter(isPresented: $sensePicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls): if let url = urls.first { model.importModels(url) }
-            case .failure(let error): model.error = error.localizedDescription
-            }
-        }
-        .fileImporter(isPresented: $whisperPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { model.importLanguageModels(url) }
             case .failure(let error): model.error = error.localizedDescription
             }
         }
