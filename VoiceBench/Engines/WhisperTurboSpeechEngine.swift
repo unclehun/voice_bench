@@ -30,6 +30,7 @@ actor WhisperTurboSpeechEngine {
         let start = ProcessInfo.processInfo.systemUptime
         var stage = "check_models"
         var converted: URL?
+        var tokenTable: URL?
         var metadata = ["whisper_turbo_model": WhisperTurboModel.version,
             "whisper_turbo_language_strategy": "model_native_auto", "whisper_turbo_task": "transcribe",
             "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2", "provider": "cpu", "threads": "2",
@@ -38,12 +39,14 @@ actor WhisperTurboSpeechEngine {
             "edge_padding_ms": "200", "overlap": "clamped_to_previous_end", "offline": "true",
             "whisper_turbo_timestamps": "vad_region_only", "whisper_turbo_external_language_detection": "false",
             "whisper_turbo_decoding": "greedy_search", "whisper_turbo_output_guard": "native_duration_cap_minus_1",
-            "whisper_turbo_budget_retry_count": "0", "whisper_turbo_retry_policy": "capped_result_then_silence_to_29s"]
+            "whisper_turbo_budget_retry_count": "0", "whisper_turbo_retry_policy": "capped_result_then_silence_to_29s",
+            "whisper_turbo_text_decoder": WhisperByteTokens.version]
         func checkCancellation() throws { try cancellation.check(); try Task.checkCancellation() }
         func event(_ name: String, detail: String = "") {
             logger.notice("VoiceBenchWhisperTurbo run=\(runID.uuidString, privacy: .public) stage=\(name, privacy: .public) \(detail, privacy: .public)")
         }
         defer { if let converted { try? temporaryFiles.remove(converted) } }
+        defer { if let tokenTable { try? temporaryFiles.remove(tokenTable) } }
         do {
             try checkCancellation()
             for name in WhisperTurboModel.requiredFiles {
@@ -51,6 +54,12 @@ actor WhisperTurboSpeechEngine {
                     throw BenchError("模型文件缺失：\(name)，请重新载入 WhisperLargeV3Turbo_INT8。")
                 }
             }
+            stage = "prepare_token_table"; event(stage)
+            let tableURL = try temporaryFiles.file(extension: "txt", prefix: "WhisperTokens-")
+            tokenTable = tableURL
+            let originalTable = try Data(contentsOf: models.appendingPathComponent("turbo-tokens.txt"))
+            try WhisperByteTokens.transportTable(from: originalTable).write(to: tableURL, options: .atomic)
+            try checkCancellation()
             stage = "initialize_whisper_turbo"; event(stage)
             let strings = WhisperTurboCStringArena()
             var config = SherpaOnnxOfflineRecognizerConfig()
@@ -58,7 +67,7 @@ actor WhisperTurboSpeechEngine {
             config.feat_config.feature_dim = 128
             config.model_config.whisper.encoder = strings.add(models.appendingPathComponent("turbo-encoder.int8.onnx").path)
             config.model_config.whisper.decoder = strings.add(models.appendingPathComponent("turbo-decoder.int8.onnx").path)
-            config.model_config.tokens = strings.add(models.appendingPathComponent("turbo-tokens.txt").path)
+            config.model_config.tokens = strings.add(tableURL.path)
             config.model_config.whisper.language = strings.add("")
             config.model_config.whisper.task = strings.add("transcribe")
             config.model_config.whisper.tail_paddings = 300
@@ -111,7 +120,7 @@ actor WhisperTurboSpeechEngine {
                     guard !samples.isEmpty, samples.count < 29 * 16000 else {
                         throw BenchError("Whisper 片段超出安全音频窗口，已停止以免原生引擎截断结果。")
                     }
-                    func decode(_ waveform: [Float]) throws -> (text: String, tokens: Int32, language: String?) {
+                    func decode(_ waveform: [Float]) throws -> (pieces: [String], tokens: Int32, language: String?) {
                         try checkCancellation()
                         guard let stream = SherpaOnnxCreateOfflineStream(recognizer) else { throw BenchError("无法创建 Whisper 识别流。") }
                         defer { SherpaOnnxDestroyOfflineStream(stream) }
@@ -120,8 +129,16 @@ actor WhisperTurboSpeechEngine {
                         try checkCancellation()
                         guard let result = SherpaOnnxGetOfflineStreamResult(stream) else { throw BenchError("Whisper 未返回识别结果。") }
                         defer { SherpaOnnxDestroyOfflineRecognizerResult(result) }
-                        return (result.pointee.text.map { String(cString: $0) } ?? "", result.pointee.count,
-                            result.pointee.lang.map { String(cString: $0) })
+                        let count = result.pointee.count
+                        guard count >= 0, count <= 448, count == 0 || result.pointee.tokens_arr != nil else {
+                            throw BenchError("Whisper 返回了无效 token 数组。")
+                        }
+                        var pieces: [String] = []
+                        for index in 0..<Int(count) {
+                            guard let token = result.pointee.tokens_arr?[index] else { throw BenchError("Whisper token 缺失。") }
+                            pieces.append(String(cString: token))
+                        }
+                        return (pieces, count, result.pointee.lang.map { String(cString: $0) })
                     }
                     stage = "decode_segment"
                     event(stage, detail: "index=\(segments.count) start=\(Double(lo) / 16000) end=\(Double(hi) / 16000)")
@@ -147,7 +164,7 @@ actor WhisperTurboSpeechEngine {
                     guard Int(decoded.tokens) < outputGuard else {
                         throw BenchError("Whisper 片段接近原生解码输出上限，结果可能不完整，请用其他模型核对。")
                     }
-                    let text = decoded.text, language = decoded.language
+                    let text = try WhisperByteTokens.text(from: decoded.pieces), language = decoded.language
                     guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                         throw BenchError("Whisper 检测到语音片段但未返回文字，请查看运行日志后重试。")
                     }
@@ -176,6 +193,9 @@ actor WhisperTurboSpeechEngine {
             stage = "cleanup_audio"
             try temporaryFiles.remove(fileURL); converted = nil
             metadata["whisper_turbo_temporary_audio_removed"] = "true"
+            stage = "cleanup_token_table"
+            try temporaryFiles.remove(tableURL); tokenTable = nil
+            metadata["whisper_turbo_temporary_token_table_removed"] = "true"
             metadata["whisper_turbo_completed_segments"] = String(segments.count)
             event("completed", detail: "segments=\(segments.count)")
             return EngineOutput(preparationMS: (ready - start) * 1000,
@@ -189,6 +209,10 @@ actor WhisperTurboSpeechEngine {
             if let fileURL = converted {
                 do { try temporaryFiles.remove(fileURL); converted = nil; metadata["whisper_turbo_temporary_audio_removed"] = "true" }
                 catch { metadata["whisper_turbo_temporary_audio_removed"] = "false"; metadata["whisper_turbo_cleanup_error"] = error.localizedDescription }
+            }
+            if let tableURL = tokenTable {
+                do { try temporaryFiles.remove(tableURL); tokenTable = nil; metadata["whisper_turbo_temporary_token_table_removed"] = "true" }
+                catch { metadata["whisper_turbo_temporary_token_table_removed"] = "false"; metadata["whisper_turbo_token_cleanup_error"] = error.localizedDescription }
             }
             event("failed", detail: "stage=\(stage) domain=\(nsError.domain) code=\(nsError.code)")
             throw WhisperTurboSpeechFailure(stage: stage, summary: error.localizedDescription, configuration: metadata)

@@ -1,6 +1,8 @@
 # VoiceBench · 语音对比
 
-简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8**、**Fun-ASR-MLT-Nano INT8** 与 **Whisper large-v3-turbo INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.7.0**。
+简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8**、**Fun-ASR-MLT-Nano INT8** 与 **Whisper large-v3-turbo INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.7.1**。
+
+0.7.1 修复 Whisper 中文 BPE 字节被底层逐 token UTF-8 清理丢弃的问题。原有模型可继续使用，无需重新下载或传输；覆盖安装后重新识别，历史结果保留。相同权重和真实音频的 Mac 对照中，录音 1 CER 从 10.50% 降至 2.94%，录音 8 从 23.26% 降至 7.64%；新版手机全量结果仍待测。源码依据、修改范围及验证见 [Whisper 接入审计](docs/WHISPER_TURBO_AUDIT.md)。
 
 当前交付包含 Swift 源码、生成的 Xcode 工程、锁定依赖、模型准备脚本、手动触发的 GitHub Actions 工作流和本地逻辑校验。云端仓库为 [unclehun/voice_bench](https://github.com/unclehun/voice_bench)，操作步骤见 [GitHub 云端编译](docs/GITHUB_ACTIONS.md)。**本地验证尚不包含 iOS SDK 编译或 iPhone 测试，实际云端构建状态以 Actions 为准。**验证边界见 [验证记录](docs/VALIDATION.md)。
 

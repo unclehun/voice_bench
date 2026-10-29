@@ -40,6 +40,7 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 | 旧语言检测格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/LanguageID-UUID.caf` | 历史残留由冷启动或删除录音清理；0.6.0 不再创建 |
 | Fun-ASR 格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/FunASR-UUID.caf` | 成功、失败或取消后清理；冷启动兜底清理 |
 | Whisper Turbo 格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/Whisper-UUID.caf` | 成功、失败或取消后清理；冷启动兜底清理 |
+| Whisper Turbo BPE 字节传输词表 | `tmp/VoiceBench/Recording-录音UUID/WhisperTokens-UUID.txt` | 成功、失败或取消后清理；删除录音及冷启动兜底清理；不修改原始模型词表 |
 | Qwen 格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/Qwen-UUID.caf` | 成功、失败或取消后清理；冷启动兜底清理 |
 | 原有两引擎格式转换音频 | `tmp/VoiceBench/Recording-录音UUID/UUID.caf` | 转写结束、失败或取消；转换失败自身也清理部分输出 |
 | 待分享 JSON / Markdown | `tmp/VoiceBench/Recording-录音UUID/Report-UUID` | 分享面板关闭后清理；生成失败立即清理 |

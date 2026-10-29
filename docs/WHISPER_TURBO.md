@@ -1,4 +1,6 @@
-# Whisper large-v3-turbo INT8（0.7.0）
+# Whisper large-v3-turbo INT8（0.7.1）
+
+0.7.1 修复 sherpa-onnx 1.13.8 在逐 BPE token 清理 UTF-8 时丢字的问题。运行时生成临时 ASCII 传输词表，保持 token ID 与权重，读取原生 token 数组后先拼接字节、再解码成文字。原始词表、manifest、receipt 与模型版本保持不变，已安装模型可继续使用；重新识别会记录 `whisper_turbo_text_decoder=base64-ascii-join-bytes-v1`。详见 [接入审计及真实录音对照](WHISPER_TURBO_AUDIT.md)。
 
 ## 模型与获取
 
@@ -52,7 +54,7 @@ Whisper 使用 128 维特征、`greedy_search`、`task=transcribe`、空语言�
 
 内部模型在 `Library/Application Support/VoiceBench/WhisperTurboModels`，默认源目录在 `Documents/WhisperLargeV3Turbo_INT8`，均排除系统备份。覆盖更新和重启复用内部模型。
 
-派生音频在 `tmp/VoiceBench/Recording-录音UUID/Whisper-UUID.caf`。成功、失败、取消、删除录音及冷启动清理。取消在原生同步推理的片段之间生效。
+派生音频在 `tmp/VoiceBench/Recording-录音UUID/Whisper-UUID.caf`，临时传输词表在同目录的 `WhisperTokens-UUID.txt`。成功、失败、取消、删除录音及冷启动清理。取消在原生同步推理的片段之间生效。传输词表只含公开模型 token，不包含录音、转写或 API Key。
 
 删除一条录音清理其全部历史五套结果、纠错及工作目录，保留共享模型和其他录音。“清除全部本机数据与模型”同时清空内部模型、receipt、默认 Documents 源目录和临时文件。App 外部手选原件保留。系统“删除 App”删除该沙箱数据。
 

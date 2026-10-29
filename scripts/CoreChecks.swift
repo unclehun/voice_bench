@@ -202,6 +202,39 @@ check(turboRun.languageDetection == nil, "Whisper ASR does not create an externa
 check(WhisperTurboModel.outputGuardTokenCount(sampleCount: 20 * 16000) == 119, "duration-bound Whisper decoding cannot masquerade as unlimited output")
 check(WhisperTurboModel.outputGuardTokenCount(sampleCount: 60 * 16000) == 223, "Whisper guard respects native text context cap")
 check(WhisperTurboModel.outputGuardTokenCount(sampleCount: -1) == 1, "invalid Whisper input cannot produce a negative budget")
+// A BPE boundary may divide a Chinese/emoji UTF-8 scalar. Sanitizing each piece
+// separately loses the character even though the complete sequence is valid.
+func whisperTextMatches(_ pieces: [String], _ expected: String) -> Bool {
+    (try? WhisperByteTokens.text(from: pieces)) == expected
+}
+let whisperByteSample = "凯撒渡河：愚公移山、困难与项目。English café 日本語 한국어 🐴 15 fifty\u{0}"
+let whisperBytes = Array(whisperByteSample.utf8)
+for cut in 1..<whisperBytes.count {
+    let pieces = [Data(whisperBytes[..<cut]).base64EncodedString(), Data(whisperBytes[cut...]).base64EncodedString()]
+    check(whisperTextMatches(pieces, whisperByteSample), "byte BPE join preserves every split including partial Chinese/emoji scalars")
+}
+let whisperBytePieces = whisperBytes.map { Data([$0]).base64EncodedString() }
+check(whisperTextMatches(whisperBytePieces, whisperByteSample), "single-byte tokens preserve multilingual text and embedded NUL")
+let whisperFixtureTable = whisperBytePieces.enumerated().map { "\($0.element) \($0.offset)" }.joined(separator: "\n")
+let whisperTransportTable = try WhisperByteTokens.transportTable(from: Data(whisperFixtureTable.utf8))
+let whisperTransportPayloads = try String(decoding: whisperTransportTable, as: UTF8.self).split(separator: "\n").map { line -> String in
+    let outer = String(line.split(separator: " ")[0])
+    let decoded = Data(base64Encoded: outer)!
+    guard let ascii = String(data: decoded, encoding: .ascii) else { throw BenchError("Whisper native token transport is not ASCII") }
+    return ascii
+}
+check(whisperTransportPayloads == whisperBytePieces, "native base64 decode preserves original payloads and token order")
+check(whisperTextMatches(whisperTransportPayloads, whisperByteSample), "ASCII transport survives per-token UTF-8 sanitization without losing bytes")
+check(whisperTextMatches(["="], ""), "pinned vocabulary's empty token remains empty")
+check(whisperTextMatches(["5Yc="], "�"), "incomplete final bytes follow tokenizer replacement behavior, not silent deletion")
+for badTable in ["", "5Yc= 0\nrw== 0", "bad! 0", "5Yc= -1", "5Yc= 0 trailing"] {
+    var rejected = false
+    do { _ = try WhisperByteTokens.transportTable(from: Data(badTable.utf8)) } catch { rejected = true }
+    check(rejected, "malformed Whisper transport vocabulary is rejected")
+}
+var invalidWhisperPayloadRejected = false
+do { _ = try WhisperByteTokens.text(from: ["not base64!"]) } catch { invalidWhisperPayloadRejected = true }
+check(invalidWhisperPayloadRejected, "damaged native Whisper token payload cannot fabricate text")
 check(Report(recording: card, environment: [:]).markdown().contains("Fun-ASR-MLT-Nano"), "MLT report includes the fourth model")
 var newerApple = Run(engine: .apple); newerApple.batchID = UUID(); card.runs.append(newerApple)
 check(card.latestComparisonRuns.map(\.id) == [newerApple.id], "single-engine debug does not mix in an old Qwen result")

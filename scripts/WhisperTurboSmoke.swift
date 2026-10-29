@@ -33,6 +33,8 @@ struct WhisperTurboSmoke {
                 throw BenchError("Fixture did not exercise Whisper's bounded output-budget retry")
             }
             guard !result.text.isEmpty, !result.segments.isEmpty,
+                  result.configuration["whisper_turbo_text_decoder"] == WhisperByteTokens.version,
+                  result.configuration["whisper_turbo_temporary_token_table_removed"] == "true",
                   result.segments.allSatisfy({ $0.startSeconds >= 0 && $0.endSeconds <= duration + 0.001 }),
                   try FileManager.default.contentsOfDirectory(atPath: temporary.root.path).isEmpty else {
                 throw BenchError("Missing text, invalid region bounds, leaked temporary audio")
@@ -63,6 +65,7 @@ struct WhisperTurboSmoke {
             throw BenchError("Cancellation after a decoded segment did not stop Whisper")
         } catch let failure as WhisperTurboSpeechFailure {
             guard flag.isCancelled, failure.configuration["whisper_turbo_temporary_audio_removed"] == "true",
+                  failure.configuration["whisper_turbo_temporary_token_table_removed"] == "true",
                   try FileManager.default.contentsOfDirectory(atPath: temporary.root.path).isEmpty else { throw failure }
         }
         let silence = try temporary.file(extension: "caf", prefix: "Silence-")
