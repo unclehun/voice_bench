@@ -26,6 +26,8 @@ final class BenchViewModel: ObservableObject {
     @Published private(set) var appleSupportedLocales: [String] = []
     @Published var qwenModelReceipt: ModelReceipt?
     @Published var qwenModelDetail = "正在检查 Qwen 默认目录…"
+    @Published var qwenWeightOnlyModelReceipt: ModelReceipt?
+    @Published var qwenWeightOnlyModelDetail = "正在检查 Qwen 4 位模型目录…"
     @Published var funASRModelReceipt: ModelReceipt?
     @Published var funASRModelDetail = "正在检查 Fun-ASR 默认目录…"
     @Published var whisperTurboModelReceipt: ModelReceipt?
@@ -65,7 +67,7 @@ final class BenchViewModel: ObservableObject {
     var appleLocaleOptions: [String] { Array(Set(appleSupportedLocales + [appleLocaleIdentifier])).sorted() }
     var bothReady: Bool { modelReceipt != nil && appleReady }
     var comparisonEngines: [EngineID] {
-        [.senseVoice, .apple] + (qwenModelReceipt == nil ? [] : [.qwen]) + (funASRModelReceipt == nil ? [] : [.funASR])
+        [.senseVoice, .apple] + (qwenModelReceipt == nil ? [] : [.qwen]) + (qwenWeightOnlyModelReceipt == nil ? [] : [.qwenWeightOnly]) + (funASRModelReceipt == nil ? [] : [.funASR])
             + (whisperTurboModelReceipt == nil ? [] : [.whisperTurbo])
     }
 
@@ -112,6 +114,18 @@ final class BenchViewModel: ObservableObject {
             qwenModelDetail = "模型已就绪；直接进行本地多语识别，无需选择语言。"
         } else if qwenModelDetail == "正在检查 Qwen 默认目录…" {
             qwenModelDetail = "默认目录为空或尚未传完；也可手动选择完整 Qwen 模型目录。"
+        }
+        do {
+            if let receipt = try await store?.importDefaultQwenWeightOnlyModelsIfComplete() {
+                qwenWeightOnlyModelReceipt = receipt
+                message = "已从默认目录 Qwen3ASR_0_6B_WeightOnly4 载入 Qwen 4 位模型。"
+            }
+        } catch { qwenWeightOnlyModelDetail = "Qwen 4 位模型目录校验失败：\(error.localizedDescription)" }
+        qwenWeightOnlyModelReceipt = await store?.qwenWeightOnlyModelReceipt()
+        if qwenWeightOnlyModelReceipt != nil {
+            qwenWeightOnlyModelDetail = "4 位模型已就绪；下次启动自动读取，与原版分别运行并保存结果。"
+        } else if qwenWeightOnlyModelDetail == "正在检查 Qwen 4 位模型目录…" {
+            qwenWeightOnlyModelDetail = "尚未载入 4 位模型；可从默认目录载入或手动选择完整模型目录。"
         }
         do {
             if let receipt = try await store?.importDefaultFunASRModelsIfComplete() {
@@ -251,16 +265,24 @@ final class BenchViewModel: ObservableObject {
         }
     }
 
-    func importQwenModels(_ source: URL? = nil) {
+    func importQwenModels(_ source: URL? = nil, variant: QwenASRVariant = .original) {
         guard idle, let store else { return }
-        begin("正在复制并校验 Qwen3-ASR 模型（约 1 GB）…")
+        let modelName = variant == .weightOnly4 ? EngineID.qwenWeightOnly.title : EngineID.qwen.title
+        let modelSize = variant == .weightOnly4 ? "约 917 MB" : "约 1 GB"
+        begin("正在复制并校验 \(modelName) 模型（\(modelSize)）…")
         task = Task {
             defer { finish() }
             do {
-                if let source { qwenModelReceipt = try await store.importQwenModels(source) }
-                else { qwenModelReceipt = try await store.importDefaultQwenModels() }
-                qwenModelDetail = "已保存到 App 内部；下次启动无需再次选择目录。"
-                message = "Qwen3-ASR 已就绪，可进行多套引擎对比或在详情中单独运行。"
+                if variant == .weightOnly4 {
+                    if let source { qwenWeightOnlyModelReceipt = try await store.importQwenWeightOnlyModels(source) }
+                    else { qwenWeightOnlyModelReceipt = try await store.importDefaultQwenWeightOnlyModels() }
+                    qwenWeightOnlyModelDetail = "4 位模型已保存；下次启动无需再次选择目录。"
+                } else {
+                    if let source { qwenModelReceipt = try await store.importQwenModels(source) }
+                    else { qwenModelReceipt = try await store.importDefaultQwenModels() }
+                    qwenModelDetail = "已保存到 App 内部；下次启动无需再次选择目录。"
+                }
+                message = "\(modelName) 已就绪，可进行多套引擎对比或在详情中单独运行。"
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -410,6 +432,7 @@ final class BenchViewModel: ObservableObject {
         let receipt = modelReceipt
         let appleSettings = appleSpeechSettings
         let qwenReceipt = qwenModelReceipt
+        let qwenWeightOnlyReceipt = qwenWeightOnlyModelReceipt
         let funASRReceipt = funASRModelReceipt
         let whisperTurboReceipt = whisperTurboModelReceipt
         task = Task {
@@ -417,6 +440,7 @@ final class BenchViewModel: ObservableObject {
             let source = await store.audioURL(recording)
             let models = await store.models
             let qwenModels = await store.qwenModels
+            let qwenWeightOnlyModels = await store.qwenWeightOnlyModels
             let funASRModels = await store.funASRModels
             let whisperTurboModels = await store.whisperTurboModels
             let workFiles = await store.workFiles(recordingID: recordingID)
@@ -445,8 +469,9 @@ final class BenchViewModel: ObservableObject {
                     run.configuration.merge(["language": "auto", "threads": "2",
                                              "provider": "cpu", "sample_rate": "16000", "itn": "true",
                                              "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2"]) { _, new in new }
-                } else if engine == .qwen {
-                    run.configuration.merge(qwenReceipt?.files.mapKeys { "qwen_model_sha256_" + $0 } ?? [:]) { _, new in new }
+                } else if engine == .qwen || engine == .qwenWeightOnly {
+                    let activeQwenReceipt = engine == .qwen ? qwenReceipt : qwenWeightOnlyReceipt
+                    run.configuration.merge(activeQwenReceipt?.files.mapKeys { "qwen_model_sha256_" + $0 } ?? [:]) { _, new in new }
                     run.configuration.merge(["qwen_language_strategy": "model_native_auto", "offline": "true",
                         "provider": "cpu", "threads": "2", "sample_rate": "16000",
                         "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2"]) { _, new in new }
@@ -475,10 +500,12 @@ final class BenchViewModel: ObservableObject {
                         guard receipt != nil else { throw BenchError("请先导入完整的 SenseVoice 模型目录。") }
                         output = try await sense.transcribe(source: source, models: models, cancellation: flag,
                                                            temporaryFiles: workFiles, progress: progress)
-                    } else if engine == .qwen {
-                        guard qwenReceipt != nil else { throw BenchError("请先导入完整的 Qwen3ASR_0_6B_INT8 模型目录。") }
-                        output = try await qwen.transcribe(source: source, models: qwenModels, runID: runID,
-                            cancellation: flag, temporaryFiles: workFiles, progress: progress)
+                    } else if engine == .qwen || engine == .qwenWeightOnly {
+                        let variant: QwenASRVariant = engine == .qwen ? .original : .weightOnly4
+                        let activeReceipt = engine == .qwen ? qwenReceipt : qwenWeightOnlyReceipt
+                        guard activeReceipt != nil else { throw BenchError("请先导入完整的 \(variant.directoryName) 模型目录。") }
+                        output = try await qwen.transcribe(source: source, models: engine == .qwen ? qwenModels : qwenWeightOnlyModels, runID: runID,
+                            cancellation: flag, variant: variant, temporaryFiles: workFiles, progress: progress)
                     } else if engine == .funASR {
                         guard funASRReceipt != nil else { throw BenchError("请先导入完整的 FunASR_MLT_Nano_INT8 模型目录。") }
                         output = try await funASR.transcribe(source: source, models: funASRModels, runID: runID,
@@ -541,7 +568,7 @@ final class BenchViewModel: ObservableObject {
     }
 
     func runComparison(recordingID: UUID) {
-        guard qwenModelReceipt != nil || funASRModelReceipt != nil || whisperTurboModelReceipt != nil else { runBoth(recordingID: recordingID); return }
+        guard qwenModelReceipt != nil || qwenWeightOnlyModelReceipt != nil || funASRModelReceipt != nil || whisperTurboModelReceipt != nil else { runBoth(recordingID: recordingID); return }
         guard idle else { return }
         guard bothReady else { error = "请先到设置完成 SenseVoice 模型和苹果默认语言资源配置；其他模型也可在详情中单独运行。"; return }
         run(comparisonEngines, recordingID: recordingID)
@@ -643,10 +670,11 @@ final class BenchViewModel: ObservableObject {
             do {
                 try await store.removeAllData()
                 recordings = []; selectedID = nil; evaluations = [:]
-                shareFiles = []; modelReceipt = nil; qwenModelReceipt = nil; funASRModelReceipt = nil; whisperTurboModelReceipt = nil; recordingURL = nil
+                shareFiles = []; modelReceipt = nil; qwenModelReceipt = nil; qwenWeightOnlyModelReceipt = nil; funASRModelReceipt = nil; whisperTurboModelReceipt = nil; recordingURL = nil
                 appleSpeechSettings = AppleSpeechSettings()
                 modelDetail = "默认目录已清空；可重新传入 SenseVoiceSmall_INT8。"
                 qwenModelDetail = "默认目录已清空；可重新传入 Qwen3ASR_0_6B_INT8。"
+                qwenWeightOnlyModelDetail = "默认目录已清空；可重新传入 Qwen3ASR_0_6B_WeightOnly4。"
                 funASRModelDetail = "默认目录已清空；可重新传入 FunASR_MLT_Nano_INT8。"
                 whisperTurboModelDetail = "默认目录已清空；可重新传入 WhisperLargeV3Turbo_INT8。"
                 await apple.releaseReservations()
@@ -660,10 +688,12 @@ final class BenchViewModel: ObservableObject {
                 }
                 modelReceipt = await store.modelReceipt()
                 qwenModelReceipt = await store.qwenModelReceipt()
+                qwenWeightOnlyModelReceipt = await store.qwenWeightOnlyModelReceipt()
                 funASRModelReceipt = await store.funASRModelReceipt()
                 whisperTurboModelReceipt = await store.whisperTurboModelReceipt()
                 if modelReceipt == nil { modelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 if qwenModelReceipt == nil { qwenModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
+                if qwenWeightOnlyModelReceipt == nil { qwenWeightOnlyModelDetail = "4 位模型已清除或清理未完成，请检查后重新导入。" }
                 if funASRModelReceipt == nil { funASRModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 if whisperTurboModelReceipt == nil { whisperTurboModelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 self.error = (["清理未全部完成：\(error.localizedDescription)。可重试。", keyRemovalError].compactMap { $0 }).joined(separator: " ")

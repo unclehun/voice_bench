@@ -27,11 +27,13 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 | 转写、参考稿、背景、纠错和运行状态 | `Library/Application Support/VoiceBench/Records` | 与对应录音一起删除，或清除全部 / 删除 App |
 | 已导入 SenseVoice / VAD 模型及 receipt | `Library/Application Support/VoiceBench/Models` | 替换模型、清除全部或删除 App |
 | 历史 Whisper Tiny / 独立 VAD 及 receipt | `Library/Application Support/VoiceBench/LanguageIDModels` | 0.6.0 不再载入；清除全部或删除 App |
+| 已导入 Qwen 4 位及 receipt | `Library/Application Support/VoiceBench/QwenWeightOnlyModels` | 替换 4 位模型、清除全部或删除 App |
 | 已导入 Qwen / tokenizer / 独立 VAD 及 receipt | `Library/Application Support/VoiceBench/QwenModels` | 替换 Qwen 模型、清除全部或删除 App |
 | 已导入 Fun-ASR-MLT / tokenizer / VAD 及 receipt | `Library/Application Support/VoiceBench/FunASRModels` | 替换 Fun-ASR 模型、清除全部或删除 App |
 | 已导入 Whisper Turbo / 词表 / VAD 及 receipt | `Library/Application Support/VoiceBench/WhisperTurboModels` | 替换 Whisper Turbo、清除全部或删除 App |
 | Whisper Turbo 默认源目录（文件 App 可见） | `Documents/WhisperLargeV3Turbo_INT8` | 清除全部或删除 App |
 | Fun-ASR 默认源目录（文件 App 可见） | `Documents/FunASR_MLT_Nano_INT8` | 清除全部或删除 App |
+| Qwen 4 位默认源目录 | `Documents/Qwen3ASR_0_6B_WeightOnly4` | 清除全部或删除 App |
 | Qwen 默认源目录（文件 App 可见） | `Documents/Qwen3ASR_0_6B_INT8` | 清除全部或删除 App |
 | Whisper 默认源目录（文件 App 可见） | `Documents/WhisperTiny_INT8` | 清除全部或删除 App |
 | 默认模型源目录（文件 App 可见） | `Documents/SenseVoiceSmall_INT8` | 清除全部或删除 App |
@@ -55,7 +57,7 @@ VoiceBench 的录音、识别结果、纠错结果、模型文件和 DeepSeek AP
 
 **设置 → 数据管理 → 清除全部本机数据与模型** 经过确认后：
 
-1. 删除 VoiceBench 私有录音、metadata、模型、`Documents/SenseVoiceSmall_INT8`、`Documents/WhisperTiny_INT8`、`Documents/Qwen3ASR_0_6B_INT8`、`Documents/FunASR_MLT_Nano_INT8`、`Documents/WhisperLargeV3Turbo_INT8` 中的模型源文件和临时工作文件；随后仅重建空的固定目录。
+1. 删除 VoiceBench 私有录音、metadata、模型、`Documents/SenseVoiceSmall_INT8`、`Documents/WhisperTiny_INT8`、`Documents/Qwen3ASR_0_6B_INT8`、`Documents/Qwen3ASR_0_6B_WeightOnly4`、`Documents/FunASR_MLT_Nano_INT8`、`Documents/WhisperLargeV3Turbo_INT8` 中的模型源文件和临时工作文件；随后仅重建空的固定目录。
 2. 清空界面中的记录、评测和分享引用，阻止旧的异步保存重新生成已删除记录。
 3. 调用 `AssetInventory.release(reservedLocale:)` 释放本 App 的苹果语音资源预留。
 4. 删除 API Key 配置文件和所在 Credentials 目录，并删除 Apple 默认语言配置、恢复中文。配置文件与其他数据清理独立尝试；失败明确提示。刷新状态及重新打开 App 均按缺省设置显示。

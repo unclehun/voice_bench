@@ -19,6 +19,7 @@
 		49EC8DF256FA429ACCD162DA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BE1640A62FA32CB4481B3771 /* Assets.xcassets */; };
 		4DCCB20A5316290E670B9424 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E34FB7B837F7D979952BD186 /* AVFoundation.framework */; };
 		51CF361BA58E7BF2F59B7C9F /* sherpa-onnx.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 76A69D53F4B7C7A2E60AA21D /* sherpa-onnx.xcframework */; };
+		57E7D3531AF9A5814D1F9E4F /* qwen-weight-only-model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B1B8060696C8458FC687E13 /* qwen-weight-only-model-manifest.json */; };
 		5926C5209FA482E20187932E /* licenses in Resources */ = {isa = PBXBuildFile; fileRef = 45BD476067478DC42C98693F /* licenses */; };
 		5AEC23C4D4C9FC1AE1FA6606 /* qwen-model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 07109D7581A7BF0C2CADC413 /* qwen-model-manifest.json */; };
 		5BE6009607BDFBAA81A72C1C /* FunASRAudioReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 659C0AC0499FCD75A6D5C5E7 /* FunASRAudioReader.swift */; };
@@ -75,6 +76,7 @@
 		733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechEngine.swift; sourceTree = "<group>"; };
 		753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenseVoiceEngine.swift; sourceTree = "<group>"; };
 		76A69D53F4B7C7A2E60AA21D /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "Vendor/sherpa-onnx.xcframework"; sourceTree = "<group>"; };
+		7B1B8060696C8458FC687E13 /* qwen-weight-only-model-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "qwen-weight-only-model-manifest.json"; sourceTree = "<group>"; };
 		82C146CFD5181BEAFD415E33 /* whisper-turbo-model-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "whisper-turbo-model-manifest.json"; sourceTree = "<group>"; };
 		8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenSpeechEngine.swift; sourceTree = "<group>"; };
 		8EC970CCAF6CCDA56E245FE5 /* PCMFileReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMFileReader.swift; sourceTree = "<group>"; };
@@ -225,6 +227,7 @@
 				1B2BEECEB3C7748D05E45EFD /* funasr-mlt-model-manifest.json */,
 				A7148698F0BFFF89EB1F680E /* model-manifest.json */,
 				07109D7581A7BF0C2CADC413 /* qwen-model-manifest.json */,
+				7B1B8060696C8458FC687E13 /* qwen-weight-only-model-manifest.json */,
 				82C146CFD5181BEAFD415E33 /* whisper-turbo-model-manifest.json */,
 			);
 			path = config;
@@ -309,6 +312,7 @@
 				5926C5209FA482E20187932E /* licenses in Resources */,
 				A37D2FD34B5CD66E20E5E618 /* model-manifest.json in Resources */,
 				5AEC23C4D4C9FC1AE1FA6606 /* qwen-model-manifest.json in Resources */,
+				57E7D3531AF9A5814D1F9E4F /* qwen-weight-only-model-manifest.json in Resources */,
 				DB840EE5BBE5FD0499AF55E1 /* whisper-turbo-model-manifest.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -406,7 +410,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.7.1;
+				MARKETING_VERSION = 0.8.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -495,7 +499,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.7.1;
+				MARKETING_VERSION = 0.8.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

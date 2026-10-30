@@ -3,6 +3,7 @@ import CryptoKit
 import VoiceBenchCore
 
 enum AudioFiles {
+    static let regionReaderVersion = "exact-float32-loop-v1"
     static func hash(_ url: URL) throws -> String {
         let file = try FileHandle(forReadingFrom: url)
         defer { try? file.close() }
@@ -73,12 +74,23 @@ enum AudioFiles {
     static func samples(file: AVAudioFile, start: Int64, end: Int64) throws -> [Float] {
         let count = max(0, min(end, file.length) - max(0, start))
         guard count > 0, count <= 32 * 16000,
-              let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(count)) else {
+              let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(min(count, 4096))) else {
             throw BenchError("语音分段为空或超过内存保护上限。")
         }
         file.framePosition = max(0, start)
-        try file.read(into: buffer, frameCount: AVAudioFrameCount(count))
-        guard let pointer = buffer.floatChannelData?[0] else { throw BenchError("需要 Float32 单声道音频。") }
-        return Array(UnsafeBufferPointer(start: pointer, count: Int(buffer.frameLength)))
+        var values: [Float] = []
+        values.reserveCapacity(Int(count))
+        // AVAudioFile can return fewer frames after a seek. Keep reading the same
+        // region rather than silently dropping the tail of every VAD slice.
+        while values.count < Int(count) {
+            let requested = AVAudioFrameCount(min(Int(buffer.frameCapacity), Int(count) - values.count))
+            try file.read(into: buffer, frameCount: requested)
+            guard buffer.frameLength > 0, buffer.frameLength <= requested,
+                  let pointer = buffer.floatChannelData?[0] else {
+                throw BenchError("语音分段读取提前结束或格式无效，未采用不完整音频。")
+            }
+            values.append(contentsOf: UnsafeBufferPointer(start: pointer, count: Int(buffer.frameLength)))
+        }
+        return values
     }
 }

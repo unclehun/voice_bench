@@ -26,4 +26,11 @@ assert "NSSpeechRecognitionUsageDescription" not in (root / "VoiceBench/Info.pli
 info = (root / "VoiceBench/Info.plist").read_text()
 assert "<key>UIFileSharingEnabled</key><true/>" in info
 assert "<key>LSSupportsOpeningDocumentsInPlace</key><true/>" in info
+qwen4_manifest = root / "config/qwen-weight-only-model-manifest.json"
+qwen4_files = json.loads(qwen4_manifest.read_text())
+qwen_files = json.loads((root / "config/qwen-model-manifest.json").read_text())
+assert set(qwen4_files) == (set(qwen_files) - {"decoder.int8.onnx"}) | {"decoder.weight4.onnx"}
+assert all(qwen4_files[name] == digest for name, digest in qwen_files.items() if name != "decoder.int8.onnx")
+assert "config/qwen-weight-only-model-manifest.json" in spec
+assert "qwen-weight-only-model-manifest.json in Resources" in (root / "VoiceBench.xcodeproj/project.pbxproj").read_text(), "4-bit model checksum manifest must be bundled in the app"
 print("PASS: scripts, plists, JSON and deployment invariants. iOS SDK compilation still required.")

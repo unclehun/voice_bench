@@ -116,7 +116,7 @@ struct CredentialChecks {
         try check(!manager.fileExists(atPath: clearCredentials.fileURL.path), "real clear all removes API key configuration")
         try check(try clearCredentials.read() == nil && DeepSeekCredentialStore(baseURL: appRoot).read() == nil, "status refresh and restart after clear all remain empty")
         try check(!manager.fileExists(atPath: clearAppleSettings.fileURL.path) && clearAppleSettings.load().localeIdentifier == "zh-CN", "clear all removes Apple settings and resets default language")
-        try check(try manager.contentsOfDirectory(atPath: appRoot.path).sorted() == ["Audio", "FunASRModels", "LanguageIDModels", "Models", "QwenModels", "Records", "WhisperTurboModels"], "clear all leaves no credential files or directory")
+        try check(try manager.contentsOfDirectory(atPath: appRoot.path).sorted() == ["Audio", "FunASRModels", "LanguageIDModels", "Models", "QwenModels", "QwenWeightOnlyModels", "Records", "WhisperTurboModels"], "clear all leaves no credential files or directory")
         try clearCredentials.save(key)
         try await local.removeAllData()
         try check(try clearCredentials.read() == nil, "full data root removal also deletes configuration independently")

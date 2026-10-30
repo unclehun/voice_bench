@@ -7,7 +7,10 @@ import VoiceBenchCore
 struct QwenSmoke {
     static func main() async {
         do {
-            guard CommandLine.arguments.count == 4 else { throw BenchError("Usage: qwen-smoke MODEL_FOLDER AUDIO_FILE REPORT_FILE") }
+            guard CommandLine.arguments.count >= 4 else { throw BenchError("Usage: qwen-smoke MODEL_FOLDER AUDIO_FILE REPORT_FILE [--weight-only4] [--check-lifecycle]") }
+            let options = Set(CommandLine.arguments.dropFirst(4))
+            guard options.isSubset(of: ["--weight-only4", "--check-lifecycle"]) else { throw BenchError("Unknown option") }
+            let variant: QwenASRVariant = options.contains("--weight-only4") ? .weightOnly4 : .original
             let models = URL(fileURLWithPath: CommandLine.arguments[1])
             let audio = URL(fileURLWithPath: CommandLine.arguments[2])
             let reportURL = URL(fileURLWithPath: CommandLine.arguments[3])
@@ -19,23 +22,38 @@ struct QwenSmoke {
             let engine = QwenSpeechEngine()
             let cancelled = CancellationFlag(); cancelled.cancel()
             do {
-                _ = try await engine.transcribe(source: audio, models: models, runID: UUID(), cancellation: cancelled, temporaryFiles: temporary) { _ in }
+                _ = try await engine.transcribe(source: audio, models: models, runID: UUID(), cancellation: cancelled, variant: variant, temporaryFiles: temporary) { _ in }
                 throw BenchError("Pre-cancelled Qwen call did not fail")
             } catch let failure as QwenSpeechFailure {
                 guard failure.stage == "check_models" else { throw failure }
             }
-            let result = try await engine.transcribe(source: audio, models: models, runID: UUID(), cancellation: CancellationFlag(), temporaryFiles: temporary) { segment in
+            let result = try await engine.transcribe(source: audio, models: models, runID: UUID(), cancellation: CancellationFlag(), variant: variant, temporaryFiles: temporary) { segment in
                 print("Segment \(segment.id): \(segment.text)")
             }
             guard !result.text.isEmpty, !result.segments.isEmpty,
+                  result.configuration["qwen_model"] == variant.version,
                   result.segments.allSatisfy({ $0.startSeconds >= 0 && $0.endSeconds <= duration + 0.001 && $0.language == nil }),
                   try FileManager.default.contentsOfDirectory(atPath: temporary.root.path).isEmpty else {
                 throw BenchError("Missing text, invalid region bounds, fabricated language labels or leaked temporary audio")
             }
-            var recording = Recording(name: "Official speech sample — macOS Qwen smoke test", fileName: audio.lastPathComponent,
+            if options.contains("--check-lifecycle") {
+                let duringRun = CancellationFlag()
+                do {
+                    _ = try await engine.transcribe(source: audio, models: models, runID: UUID(), cancellation: duringRun,
+                        variant: variant, temporaryFiles: temporary) { _ in duringRun.cancel() }
+                    throw BenchError("Decode-progress cancellation was not honored")
+                } catch is QwenSpeechFailure {
+                    guard duringRun.isCancelled,
+                          try FileManager.default.contentsOfDirectory(atPath: temporary.root.path).isEmpty else {
+                        throw BenchError("Cancelled Qwen run leaked temporary data")
+                    }
+                }
+                print("PASS: cancellation after real decode and derived-audio cleanup")
+            }
+            var recording = Recording(name: "Qwen native smoke — \(audio.lastPathComponent)", fileName: audio.lastPathComponent,
                 sha256: try AudioFiles.hash(audio), duration: duration, sampleRate: input.processingFormat.sampleRate,
                 channels: Int(input.processingFormat.channelCount))
-            var run = Run(engine: .qwen)
+            var run = Run(engine: variant == .original ? .qwen : .qwenWeightOnly)
             run.status = .completed; run.rawText = result.text; run.segments = result.segments
             run.preparationMS = result.preparationMS; run.transcriptionMS = result.transcriptionMS
             run.configuration = result.configuration

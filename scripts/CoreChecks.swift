@@ -199,6 +199,15 @@ let fiveEngineCard = try JSONDecoder().decode(Recording.self, from: JSONEncoder(
 check(fiveEngineCard.runs.last?.engine == .whisperTurbo && fiveEngineCard.runs.last?.modelVersion == WhisperTurboModel.version, "Whisper identity persists independently of historical Tiny language data")
 check(Report(recording: card, environment: [:]).markdown().contains("Whisper large-v3-turbo"), "fifth model appears in exported report")
 check(turboRun.languageDetection == nil, "Whisper ASR does not create an external language routing plan")
+var optimizedQwen = Run(engine: .qwenWeightOnly); optimizedQwen.batchID = comparisonID
+optimizedQwen.status = .completed; optimizedQwen.rawText = "We can keep English，也保留中文。"
+card.runs.append(optimizedQwen)
+check(card.latestComparisonRuns.map(\.engine) == [.senseVoice, .apple, .qwen, .qwenWeightOnly, .funASR, .whisperTurbo], "Qwen precision profiles keep independent comparison rows")
+let sixEngineCard = try JSONDecoder().decode(Recording.self, from: JSONEncoder().encode(card))
+check(sixEngineCard.runs.last?.engine == .qwenWeightOnly && sixEngineCard.runs.last?.modelVersion == QwenWeightOnlyModel.version, "optimized Qwen identity survives persistence")
+check(sixEngineCard.runs.contains { $0.engine == .qwen && $0.modelVersion == QwenASRModel.version }, "optimized Qwen preserves legacy run identity")
+check(QwenASRVariant.original.decoderFile != QwenASRVariant.weightOnly4.decoderFile, "precision profiles cannot silently share decoder filenames")
+check(Report(recording: card, environment: [:]).markdown().contains(EngineID.qwenWeightOnly.title), "4-bit profile appears in reports")
 check(WhisperTurboModel.outputGuardTokenCount(sampleCount: 20 * 16000) == 119, "duration-bound Whisper decoding cannot masquerade as unlimited output")
 check(WhisperTurboModel.outputGuardTokenCount(sampleCount: 60 * 16000) == 223, "Whisper guard respects native text context cap")
 check(WhisperTurboModel.outputGuardTokenCount(sampleCount: -1) == 1, "invalid Whisper input cannot produce a negative budget")

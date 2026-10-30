@@ -31,7 +31,7 @@ actor WhisperTurboSpeechEngine {
         var stage = "check_models"
         var converted: URL?
         var tokenTable: URL?
-        var metadata = ["whisper_turbo_model": WhisperTurboModel.version,
+        var metadata = ["audio_region_reader": AudioFiles.regionReaderVersion, "whisper_turbo_model": WhisperTurboModel.version,
             "whisper_turbo_language_strategy": "model_native_auto", "whisper_turbo_task": "transcribe",
             "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2", "provider": "cpu", "threads": "2",
             "sample_rate": "16000", "whisper_turbo_feature_dim": "128", "whisper_turbo_tail_paddings": "300",

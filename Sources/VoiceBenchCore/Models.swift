@@ -4,6 +4,7 @@ public enum EngineID: String, Codable, CaseIterable, Identifiable, Sendable {
     case senseVoice = "sensevoice_small_int8"
     case apple = "apple_speechtranscriber"
     case qwen = "qwen3_asr_0_6b_int8"
+    case qwenWeightOnly = "qwen3_asr_0_6b_weight_only4"
     case funASR = "fun_asr_mlt_nano_int8"
     case whisperTurbo = "whisper_large_v3_turbo_int8"
     public var id: String { rawValue }
@@ -12,6 +13,7 @@ public enum EngineID: String, Codable, CaseIterable, Identifiable, Sendable {
         case .senseVoice: return "SenseVoice"
         case .apple: return "Apple Speech"
         case .qwen: return "Qwen3-ASR"
+        case .qwenWeightOnly: return "Qwen3-ASR 4 位"
         case .funASR: return "Fun-ASR-MLT-Nano"
         case .whisperTurbo: return "Whisper large-v3-turbo"
         }
@@ -82,6 +84,7 @@ public struct Run: Codable, Identifiable, Sendable {
         case .apple: modelVersion = "system-managed/unknown"
         case .senseVoice: modelVersion = "sense-voice-int8-2024-07-17"
         case .qwen: modelVersion = QwenASRModel.version
+        case .qwenWeightOnly: modelVersion = QwenWeightOnlyModel.version
         case .funASR: modelVersion = FunASRModel.version
         case .whisperTurbo: modelVersion = WhisperTurboModel.version
         }

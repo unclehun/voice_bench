@@ -1,6 +1,8 @@
 # VoiceBench · 语音对比
 
-简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8**、**Fun-ASR-MLT-Nano INT8** 与 **Whisper large-v3-turbo INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.7.1**。
+简洁的 iPhone 原生 Demo，针对同一份录音比较 **SenseVoiceSmall INT8**、**Apple SpeechTranscriber**、**Qwen3-ASR 0.6B INT8**、**Qwen3-ASR 4 位**、**Fun-ASR-MLT-Nano INT8** 与 **Whisper large-v3-turbo INT8**。最低 iOS **26.0**，全部本地识别。当前版本 **0.8.0**。
+
+0.8.0 增加独立的 **Qwen3-ASR 4 位**：使用已完成 Mac 验证的分块 32 权重量化解码器、Float32 中间计算和精确音频区间读取，完整模型约 917 MB，目录为 `Models/Qwen3ASR_0_6B_WeightOnly4`。在设置中可从默认目录载入或手动选择目录，载入后加入识别对比，也可单独运行；原 INT8 与 4 位各自保存结果。导入步骤见 [Qwen 4 位接入说明](docs/QWEN_WEIGHT_ONLY4.md)，官方基准与根因分析见 [Qwen 官方对照](docs/QWEN_REFERENCE_VALIDATION.md)，完整十段对比见 [新 8 位与新 4 位评测](docs/QWEN_WEIGHT8_COMPARISON.md)。真机速度、内存及准确率仍待验证。
 
 0.7.1 修复 Whisper 中文 BPE 字节被底层逐 token UTF-8 清理丢弃的问题。原有模型可继续使用，无需重新下载或传输；覆盖安装后重新识别，历史结果保留。相同权重和真实音频的 Mac 对照中，录音 1 CER 从 10.50% 降至 2.94%，录音 8 从 23.26% 降至 7.64%；新版手机全量结果仍待测。源码依据、修改范围及验证见 [Whisper 接入审计](docs/WHISPER_TURBO_AUDIT.md)。
 
@@ -9,7 +11,7 @@
 ## 功能
 
 - 录音、M4A / WAV 导入、播放、录音选择和删除。
-- 五套引擎各自识别同一份原始录音；Apple 不再使用外部语言检测。载入 Qwen / Fun-ASR / Whisper Turbo 后，每轮加入已配置的引擎，最多依次运行五套，详情页可单独测试任一引擎。
+- 六套识别配置各自识别同一份原始录音；Apple 不再使用外部语言检测。载入 Qwen INT8 / Qwen 4 位 / Fun-ASR / Whisper Turbo 后，每轮加入已配置的引擎，最多依次运行六个配置，详情页可单独测试任一引擎。
 - 同一源文件的 SHA-256、原始文本、分段时间、初始化时间、转写时间及 RTF。
 - 模型文件校验、Apple 默认识别语言设置及对应资源准备、可用性检查、错误和取消状态。
 - 原文及完成片段落盘，重启后把未完成任务标记为中断。
@@ -54,6 +56,7 @@ Apple Speech 重复报 `Foundation._GenericObjCError Code=0` 时，新版采用�
 - `.tools/xcodegen/`：项目内的 XcodeGen 2.44.1，不是 Xcode。
 - `Models/FunASR_MLT_Nano_INT8/`：完整 MLT 版 ONNX INT8、tokenizer、VAD、许可证及 manifest，约 1.01 GB（不提交 Git，也不进入 IPA）。
 - `Models/WhisperLargeV3Turbo_INT8/`：完整 Turbo 多语言 ONNX INT8、词表、VAD、许可证和 manifest，约 1.04 GB（不提交 Git，也不进入 IPA）。
+- `Models/Qwen3ASR_0_6B_WeightOnly4/`：已生成并校验的 4 位版约 917 MB；保留原编码器，使用分块 32 权重 4 位／中间计算 Float32 的解码器，作为独立识别配置。
 - `Models/Qwen3ASR_0_6B_INT8/`：完整 Qwen、tokenizer、VAD、许可证和 manifest，约 988 MB（不提交 Git，也不进入 IPA）。
 - `Models/WhisperTiny_INT8/`：旧流程准备的语言检测模型（约 103 MB，不提交 Git）；0.6.0 不再载入或调用，新设备不需要准备。
 - `Models/VoiceBenchModels/`：准备好的手机模型导入目录，含权重、tokens、VAD、许可证和 manifest（不提交 Git）。
@@ -179,6 +182,12 @@ python3 scripts/prepare_qwen_models.py --verify-only
 把完整文件夹传到 **文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_INT8**，保留 `tokenizer` 子目录。打开 App 或点设置中的“检查状态”自动载入；也可“从默认目录载入 Qwen3-ASR”或“选择其他 Qwen3-ASR 目录…”。文件树、空间要求和真机验收见 [Qwen 接入说明](docs/QWEN_ASR.md)。
 
 Qwen 独立直接转写多语言，不使用 Apple 的语言资源。载入后卡片“识别”自动加入第三套；详情 → 调试运行 → “仅 Qwen3-ASR”可独立测试。默认语言选项只影响 Apple，其他四套引擎仍使用各自模型的自动多语能力。
+
+### Qwen3-ASR 4 位（独立识别配置）
+
+将 `Models/Qwen3ASR_0_6B_WeightOnly4` 完整复制到 **文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_WeightOnly4**，保留 `tokenizer` 子目录。进入 **设置 → Qwen3-ASR 4 位**，点 **从默认目录载入 Qwen 4 位**；也可用 **选择其他 Qwen 4 位目录…** 选择整个文件夹。完整传入后，启动 App 或“检查状态”也会自动校验载入。
+
+载入后，录音卡片的“识别”加入独立的 **Qwen3-ASR 4 位** 结果；单独评测可进入 **详情 → 调试运行 → 仅 Qwen3-ASR 4 位**。重启或保留数据的覆盖更新后无需重新选择目录。文件清单、已验证的推理配置及空间说明见 [Qwen 4 位接入说明](docs/QWEN_WEIGHT_ONLY4.md)。
 
 ### Fun-ASR-MLT-Nano INT8（第四套识别引擎）
 

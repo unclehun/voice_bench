@@ -67,7 +67,7 @@ struct AudioChecks {
         try await recordingDeletionChecks(store: store, source: source, keep: item)
         fputs("Storage check: backups, exports, invalid import and cold-launch recovery\n", stderr)
         let root = store.root
-        for name in ["", "Audio", "Records", "Models", "LanguageIDModels", "QwenModels", "FunASRModels", "WhisperTurboModels"] {
+        for name in ["", "Audio", "Records", "Models", "LanguageIDModels", "QwenModels", "QwenWeightOnlyModels", "FunASRModels", "WhisperTurboModels"] {
             let url = name.isEmpty ? root : root.appendingPathComponent(name)
             guard try url.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true else {
                 throw BenchError("App data directory still included in backup: \(name)")
@@ -172,11 +172,13 @@ struct AudioChecks {
               try FileManager.default.contentsOfDirectory(atPath: modelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.languageModels.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.qwenModels.path).isEmpty,
+              try FileManager.default.contentsOfDirectory(atPath: store.qwenWeightOnlyModels.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.funASRModels.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.whisperTurboModels.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultLanguageModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultQwenModelDirectory.path).isEmpty,
+              try FileManager.default.contentsOfDirectory(atPath: store.defaultQwenWeightOnlyModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultFunASRModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: store.defaultWhisperTurboModelDirectory.path).isEmpty,
               try FileManager.default.contentsOfDirectory(atPath: temporary.root.path).isEmpty,

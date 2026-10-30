@@ -112,7 +112,7 @@ actor SenseVoiceEngine {
         try cancellation.check()
         return EngineOutput(preparationMS: (ready - start) * 1000,
                             transcriptionMS: (ProcessInfo.processInfo.systemUptime - ready) * 1000, segments: segments,
-                            configuration: ["sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2", "provider": "cpu", "language": "auto",
+                            configuration: ["audio_region_reader": AudioFiles.regionReaderVersion, "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2", "provider": "cpu", "language": "auto",
                                             "threads": "2", "sample_rate": "16000", "itn": "true",
                                             "vad_max_seconds": "25", "vad_min_silence": "0.6",
                                             "vad_min_speech": "0", "edge_padding_ms": "200", "overlap": "clamped_to_previous_end"])

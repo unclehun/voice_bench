@@ -6,6 +6,7 @@ struct BenchSettingsView: View {
     @ObservedObject var model: BenchViewModel
     @State private var sensePicker = false
     @State private var qwenPicker = false
+    @State private var qwenWeightOnlyPicker = false
     @State private var funASRPicker = false
     @State private var whisperTurboPicker = false
     @State private var confirmClear = false
@@ -45,6 +46,17 @@ struct BenchSettingsView: View {
                 Text("文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_INT8。请复制完整目录并保留 tokenizer 子目录。")
                     .font(.caption).foregroundStyle(.secondary)
                 Text("约 1 GB；自动进行本地多语识别。配置完成后主界面识别会加入 Qwen 引擎。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Qwen3-ASR 4 位") {
+                status(EngineID.qwenWeightOnly.title, detail: model.qwenWeightOnlyModelDetail, ready: model.qwenWeightOnlyModelReceipt != nil)
+                Button("从默认目录载入 Qwen 4 位") { model.importQwenModels(variant: .weightOnly4) }
+                    .disabled(!model.idle).accessibilityIdentifier("settings.qwen-weight4.load-default")
+                Button("选择其他 Qwen 4 位目录…", systemImage: "folder") { qwenWeightOnlyPicker = true }
+                    .disabled(!model.idle).accessibilityIdentifier("settings.qwen-weight4.select-folder")
+                Text("文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_WeightOnly4。请复制完整目录并保留 tokenizer 子目录。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("约 917 MB；本地自动多语识别。载入后加入主界面的识别对比，也可在详情中单独运行；与原版分别保存和评测。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
@@ -106,6 +118,12 @@ struct BenchSettingsView: View {
         .fileImporter(isPresented: $qwenPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls): if let url = urls.first { model.importQwenModels(url) }
+            case .failure(let error): model.error = error.localizedDescription
+            }
+        }
+        .fileImporter(isPresented: $qwenWeightOnlyPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let urls): if let url = urls.first { model.importQwenModels(url, variant: .weightOnly4) }
             case .failure(let error): model.error = error.localizedDescription
             }
         }

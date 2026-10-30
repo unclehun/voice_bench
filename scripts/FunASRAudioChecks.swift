@@ -16,6 +16,11 @@ enum FunASRAudioChecks {
         }
         let input = try AVAudioFile(forReading: url)
         for (lo, hi) in [(8672, 89472), (0, 1), (6401, 16003), (88111, 89472), (0, 89472)] {
+            let sharedValues = try AudioFiles.samples(file: input, start: Int64(lo), end: Int64(hi))
+            guard sharedValues.count == hi - lo,
+                  sharedValues.enumerated().allSatisfy({ $0.element == expected($0.offset + lo) }) else {
+                throw BenchError("Shared audio reader lost or shifted PCM frames after seek")
+            }
             let values = try FunASRAudioReader.samples(file: input, start: Int64(lo), end: Int64(hi), cancellation: CancellationFlag())
             guard values.count == hi - lo,
                   values.enumerated().allSatisfy({ $0.element == expected($0.offset + lo) }) else {
