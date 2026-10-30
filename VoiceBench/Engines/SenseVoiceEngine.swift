@@ -88,7 +88,7 @@ actor SenseVoiceEngine {
                 try cancellation.check()
                 guard let result = SherpaOnnxGetOfflineStreamResult(stream) else { throw BenchError("SenseVoice 未返回结果。") }
                 let text = result.pointee.text.map { String(cString: $0) } ?? ""
-                let detectedLanguage = LanguageRouting.normalized(result.pointee.lang.map { String(cString: $0) })
+                let detectedLanguage = LanguageCode.normalized(result.pointee.lang.map { String(cString: $0) })
                 SherpaOnnxDestroyOfflineRecognizerResult(result)
                 let item = Segment(id: segments.count, startSeconds: Double(lo) / 16000, endSeconds: Double(hi) / 16000,
                                    text: text, elapsedMS: (ProcessInfo.processInfo.systemUptime - segmentStart) * 1000,

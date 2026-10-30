@@ -6,9 +6,9 @@ import zipfile
 
 root = Path(__file__).resolve().parent.parent
 entries = [
-    "README.md", "THIRD_PARTY_NOTICES.md", "实施方案-免本机Xcode.md",
+    "README.md", "THIRD_PARTY_NOTICES.md",
     "Package.swift", "project.yml", ".gitignore", ".github",
-    "VoiceBench.xcodeproj", "VoiceBench", "Sources", "Tests", "scripts",
+    "VoiceBench.xcodeproj", "VoiceBench", "Sources", "scripts",
     "config", "licenses", "docs",
 ]
 output = root / "build" / "VoiceBench-source.zip"

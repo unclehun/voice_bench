@@ -25,13 +25,12 @@ actor QwenSpeechEngine {
     private let logger = Logger(subsystem: "com.voicebench.demo", category: "QwenASR")
 
     func transcribe(source: URL, models: URL, runID: UUID, cancellation: CancellationFlag,
-                    variant: QwenASRVariant = .original,
                     temporaryFiles: AppTemporaryFiles = .live,
                     progress: @escaping @Sendable (Segment) async -> Void) async throws -> EngineOutput {
         let start = ProcessInfo.processInfo.systemUptime
         var stage = "check_models"
         var converted: URL?
-        var metadata = ["qwen_model": variant.version, "qwen_language_strategy": "model_native_auto",
+        var metadata = ["qwen_model": QwenASRModel.version, "qwen_language_strategy": "model_native_auto",
             "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2", "provider": "cpu", "threads": "2",
             "sample_rate": "16000", "qwen_feature_dim": "128", "qwen_max_total_len": "1024",
             "qwen_max_new_tokens": "512", "qwen_temperature": "0", "qwen_top_p": "1", "qwen_seed": "0",
@@ -39,8 +38,8 @@ actor QwenSpeechEngine {
             "edge_padding_ms": "200", "overlap": "clamped_to_previous_end", "offline": "true",
             "qwen_timestamps": "vad_region_only", "qwen_language_labels": "not_exposed_by_native_result",
             "qwen_output_guard_tokens": "496"]
-        metadata["qwen_decoder_precision"] = variant == .original ? "dynamic_int8_weights_and_activations" : "weight_only_int4_block32_float32_activations"
-        metadata["qwen_embedding_precision"] = variant == .original ? "int8" : "original_bfloat16_storage_float32_compute"
+        metadata["qwen_decoder_precision"] = "weight_only_int4_block32_float32_activations"
+        metadata["qwen_embedding_precision"] = "original_bfloat16_storage_float32_compute"
         metadata["sherpa_git_sha"] = String(cString: SherpaOnnxGetGitSha1())
         metadata["audio_region_reader"] = AudioFiles.regionReaderVersion
         func checkCancellation() throws { try cancellation.check(); try Task.checkCancellation() }
@@ -50,9 +49,9 @@ actor QwenSpeechEngine {
         defer { if let converted { try? temporaryFiles.remove(converted) } }
         do {
             try checkCancellation()
-            for name in variant.requiredFiles {
+            for name in QwenASRModel.requiredFiles {
                 guard FileManager.default.fileExists(atPath: models.appendingPathComponent(name).path) else {
-                    throw BenchError("模型文件缺失：\(name)，请重新载入 \(variant.directoryName)。")
+                    throw BenchError("模型文件缺失：\(name)，请重新载入 \(QwenASRModel.defaultDirectoryName)。")
                 }
             }
             stage = "initialize_qwen"; event(stage)
@@ -62,7 +61,7 @@ actor QwenSpeechEngine {
             config.feat_config.feature_dim = 128
             config.model_config.qwen3_asr.conv_frontend = strings.add(models.appendingPathComponent("conv_frontend.onnx").path)
             config.model_config.qwen3_asr.encoder = strings.add(models.appendingPathComponent("encoder.int8.onnx").path)
-            config.model_config.qwen3_asr.decoder = strings.add(models.appendingPathComponent(variant.decoderFile).path)
+            config.model_config.qwen3_asr.decoder = strings.add(models.appendingPathComponent("decoder.weight4.onnx").path)
             config.model_config.qwen3_asr.tokenizer = strings.add(models.appendingPathComponent("tokenizer", isDirectory: true).path)
             config.model_config.qwen3_asr.max_total_len = 1024
             config.model_config.qwen3_asr.max_new_tokens = 512

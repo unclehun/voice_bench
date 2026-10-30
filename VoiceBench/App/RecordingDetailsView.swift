@@ -51,15 +51,6 @@ struct RecordingDetailsView: View {
                                 Text("原文 CER \(BenchFormat.percent(evaluation.rawCER?.rate)) · Apple 纠错 \(BenchFormat.percent(evaluation.correctedCER?.rate)) · DeepSeek 纠错 \(BenchFormat.percent(evaluation.deepSeekCER?.rate))")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
-                            if let plan = run.languageDetection {
-                                DisclosureGroup("历史语言检测明细") {
-                                    ForEach(Array(plan.regions.enumerated()), id: \.offset) { _, region in
-                                        Text(String(format: "%.1f–%.1f 秒 · %@", region.startSeconds, region.endSeconds,
-                                                    region.language.map(LanguageRouting.name) ?? "未确定"))
-                                            .font(.caption)
-                                    }
-                                }
-                            }
                             if run.status == .completed {
                                 if run.hasCorrectionAttempts {
                                     Menu("纠错操作") {
@@ -89,14 +80,8 @@ struct RecordingDetailsView: View {
                             .disabled(!model.idle || model.modelReceipt == nil)
                         Button("仅 Apple") { model.run([.apple], recordingID: recordingID) }
                             .disabled(!model.idle || !model.appleReady)
-                        Button("仅 Qwen3-ASR") { model.run([.qwen], recordingID: recordingID) }
+                        Button("仅 \(EngineID.qwen.title)") { model.run([.qwen], recordingID: recordingID) }
                             .disabled(!model.idle || model.qwenModelReceipt == nil)
-                        Button("仅 \(EngineID.qwenWeightOnly.title)") { model.run([.qwenWeightOnly], recordingID: recordingID) }
-                            .disabled(!model.idle || model.qwenWeightOnlyModelReceipt == nil)
-                        Button("仅 Fun-ASR-MLT-Nano") { model.run([.funASR], recordingID: recordingID) }
-                            .disabled(!model.idle || model.funASRModelReceipt == nil)
-                        Button("仅 Whisper large-v3-turbo") { model.run([.whisperTurbo], recordingID: recordingID) }
-                            .disabled(!model.idle || model.whisperTurboModelReceipt == nil)
                     }
                 }
             } else { Text("该录音已删除。").foregroundStyle(.secondary) }

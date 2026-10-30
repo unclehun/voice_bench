@@ -91,12 +91,6 @@ public struct Report: Codable, Sendable {
             if let locale = run.configuration["apple_locale"] {
                 lines += ["", "Apple 识别语言：\(locale)；整段直接识别；无外部语言检测。"]
             }
-            if let detection = run.languageDetection {
-                lines += ["", "语言检测：\(detection.model)；初始化 \(format(detection.preparationMS)) ms；检测 \(format(detection.detectionMS)) ms"]
-                for region in detection.regions {
-                    lines.append("- \(String(format: "%.2f–%.2f", region.startSeconds, region.endSeconds)) 秒：\(region.language ?? "und")（\(region.decision)；候选 \(region.observedLanguages.joined(separator: ","))）")
-                }
-            }
             if let error = run.error { lines += ["", "错误：\(error)"] }
         }
         lines += ["", "## 人工参考稿", "", recording.reference, "", "详细配置、分段与模型信息见配套 JSON。", ""]

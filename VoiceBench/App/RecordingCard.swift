@@ -22,10 +22,7 @@ struct RecordingCard: View {
                     } else {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(engine.title).font(.subheadline.weight(.semibold))
-                            Text(((engine == .qwen && model.qwenModelReceipt == nil)
-                                  || (engine == .qwenWeightOnly && model.qwenWeightOnlyModelReceipt == nil)
-                                  || (engine == .funASR && model.funASRModelReceipt == nil)
-                                  || (engine == .whisperTurbo && model.whisperTurboModelReceipt == nil))
+                            Text((engine == .qwen && model.qwenModelReceipt == nil)
                                  ? "尚未配置模型，可在设置中载入" : (runs.isEmpty ? "尚未识别" : "本轮未运行"))
                                 .font(.subheadline).foregroundStyle(.secondary)
                         }
@@ -146,9 +143,6 @@ struct RunTranscriptView: View {
             if let error = run.error { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
             if let identifier = run.configuration["apple_locale"] {
                 Text("识别语言：\(AppleSpeechSettings.displayName(identifier)) · 整段直接识别")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else if let detection = run.languageDetection, !detection.languages.isEmpty {
-                Text("历史自动语言：\(detection.languages.map(LanguageRouting.name).joined(separator: "、"))")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

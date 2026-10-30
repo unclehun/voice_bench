@@ -6,9 +6,6 @@ struct BenchSettingsView: View {
     @ObservedObject var model: BenchViewModel
     @State private var sensePicker = false
     @State private var qwenPicker = false
-    @State private var qwenWeightOnlyPicker = false
-    @State private var funASRPicker = false
-    @State private var whisperTurboPicker = false
     @State private var confirmClear = false
     @State private var deepSeekAPIKey = ""
 
@@ -39,42 +36,15 @@ struct BenchSettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 status("本地文字纠错", detail: model.correctionUnavailable ?? "系统文字模型可用", ready: model.correctionUnavailable == nil)
             }
-            Section {
-                status("Qwen3-ASR 0.6B INT8", detail: model.qwenModelDetail, ready: model.qwenModelReceipt != nil)
-                Button("从默认目录载入 Qwen3-ASR") { model.importQwenModels() }.disabled(!model.idle)
-                Button("选择其他 Qwen3-ASR 目录…", systemImage: "folder") { qwenPicker = true }.disabled(!model.idle)
-                Text("文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_INT8。请复制完整目录并保留 tokenizer 子目录。")
-                    .font(.caption).foregroundStyle(.secondary)
-                Text("约 1 GB；自动进行本地多语识别。配置完成后主界面识别会加入 Qwen 引擎。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             Section("Qwen3-ASR 4 位") {
-                status(EngineID.qwenWeightOnly.title, detail: model.qwenWeightOnlyModelDetail, ready: model.qwenWeightOnlyModelReceipt != nil)
-                Button("从默认目录载入 Qwen 4 位") { model.importQwenModels(variant: .weightOnly4) }
+                status(EngineID.qwen.title, detail: model.qwenModelDetail, ready: model.qwenModelReceipt != nil)
+                Button("从默认目录载入 Qwen 4 位") { model.importQwenModels() }
                     .disabled(!model.idle).accessibilityIdentifier("settings.qwen-weight4.load-default")
-                Button("选择其他 Qwen 4 位目录…", systemImage: "folder") { qwenWeightOnlyPicker = true }
+                Button("选择其他 Qwen 4 位目录…", systemImage: "folder") { qwenPicker = true }
                     .disabled(!model.idle).accessibilityIdentifier("settings.qwen-weight4.select-folder")
                 Text("文件 → 在我的 iPhone → 语音对比 → Qwen3ASR_0_6B_WeightOnly4。请复制完整目录并保留 tokenizer 子目录。")
                     .font(.caption).foregroundStyle(.secondary)
-                Text("约 917 MB；本地自动多语识别。载入后加入主界面的识别对比，也可在详情中单独运行；与原版分别保存和评测。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section {
-                status("Fun-ASR-MLT-Nano INT8", detail: model.funASRModelDetail, ready: model.funASRModelReceipt != nil)
-                Button("从默认目录载入 Fun-ASR-MLT-Nano") { model.importFunASRModels() }.disabled(!model.idle)
-                Button("选择其他 Fun-ASR-MLT-Nano 目录…", systemImage: "folder") { funASRPicker = true }.disabled(!model.idle)
-                Text("文件 → 在我的 iPhone → 语音对比 → FunASR_MLT_Nano_INT8。请复制完整目录并保留 tokenizer 子目录。")
-                    .font(.caption).foregroundStyle(.secondary)
-                Text("约 1 GB；自动进行本地多语识别。配置完成后主界面识别会增加 Fun-ASR 引擎。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section("Whisper large-v3-turbo") {
-                status("Whisper large-v3-turbo INT8", detail: model.whisperTurboModelDetail, ready: model.whisperTurboModelReceipt != nil)
-                Button("从默认目录载入 Whisper Turbo") { model.importWhisperTurboModels() }.disabled(!model.idle)
-                Button("选择其他 Whisper Turbo 目录…", systemImage: "folder") { whisperTurboPicker = true }.disabled(!model.idle)
-                Text("文件 → 在我的 iPhone → 语音对比 → WhisperLargeV3Turbo_INT8。请复制完整目录。")
-                    .font(.caption).foregroundStyle(.secondary)
-                Text("约 1.04 GB；与 Qwen 一样在本机分段转写，模型内部自动识别语言。配置完成后主界面识别会加入 Whisper 引擎。")
+                Text("约 917 MB；本地自动多语识别。载入后加入主界面的识别对比，也可在详情中单独运行；识别结果独立保存和评测。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("DeepSeek 公网纠错") {
@@ -118,24 +88,6 @@ struct BenchSettingsView: View {
         .fileImporter(isPresented: $qwenPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls): if let url = urls.first { model.importQwenModels(url) }
-            case .failure(let error): model.error = error.localizedDescription
-            }
-        }
-        .fileImporter(isPresented: $qwenWeightOnlyPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { model.importQwenModels(url, variant: .weightOnly4) }
-            case .failure(let error): model.error = error.localizedDescription
-            }
-        }
-        .fileImporter(isPresented: $funASRPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { model.importFunASRModels(url) }
-            case .failure(let error): model.error = error.localizedDescription
-            }
-        }
-        .fileImporter(isPresented: $whisperTurboPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { model.importWhisperTurboModels(url) }
             case .failure(let error): model.error = error.localizedDescription
             }
         }

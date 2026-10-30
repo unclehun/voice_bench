@@ -13,7 +13,7 @@ settings:
     SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
     CODE_SIGNING_ALLOWED: NO
     SWIFT_STRICT_CONCURRENCY: targeted
-    MARKETING_VERSION: "0.8.0"
+    MARKETING_VERSION: "0.9.0"
     CURRENT_PROJECT_VERSION: "1"
   configs:
     Release:
@@ -35,13 +35,7 @@ targets:
         buildPhase: resources
       - path: config/model-manifest.json
         buildPhase: resources
-      - path: config/qwen-model-manifest.json
-        buildPhase: resources
       - path: config/qwen-weight-only-model-manifest.json
-        buildPhase: resources
-      - path: config/funasr-mlt-model-manifest.json
-        buildPhase: resources
-      - path: config/whisper-turbo-model-manifest.json
         buildPhase: resources
     settings:
       base:

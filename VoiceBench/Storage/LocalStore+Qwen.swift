@@ -1,14 +1,10 @@
 import Foundation
 import VoiceBenchCore
 
-/// Qwen imports are isolated from the existing SenseVoice/Whisper import paths.
+/// Import the fixed 4-bit model independently of SenseVoice.
 extension LocalStore {
     func qwenModelReceipt() -> ModelReceipt? {
         qwenReceipt(at: qwenModels, required: QwenASRModel.requiredFiles, version: QwenASRModel.version)
-    }
-
-    func qwenWeightOnlyModelReceipt() -> ModelReceipt? {
-        qwenReceipt(at: qwenWeightOnlyModels, required: QwenWeightOnlyModel.requiredFiles, version: QwenWeightOnlyModel.version)
     }
 
     private func qwenReceipt(at directory: URL, required: [String], version: String) -> ModelReceipt? {
@@ -16,21 +12,6 @@ extension LocalStore {
               let receipt = try? JSONDecoder().decode(ModelReceipt.self, from: data), receipt.version == version,
               required.allSatisfy({ isQwenAsset(at: directory.appendingPathComponent($0)) }) else { return nil }
         return receipt
-    }
-
-    func importDefaultQwenWeightOnlyModelsIfComplete() throws -> ModelReceipt? {
-        guard qwenWeightOnlyModelReceipt() == nil,
-              QwenWeightOnlyModel.requiredFiles.allSatisfy({ isQwenAsset(at: defaultQwenWeightOnlyModelDirectory.appendingPathComponent($0)) }) else { return nil }
-        return try importQwenWeightOnlyModels(defaultQwenWeightOnlyModelDirectory)
-    }
-
-    func importDefaultQwenWeightOnlyModels() throws -> ModelReceipt {
-        try importQwenWeightOnlyModels(defaultQwenWeightOnlyModelDirectory)
-    }
-
-    func importQwenWeightOnlyModels(_ source: URL) throws -> ModelReceipt {
-        try importQwenModelSet(source, destination: qwenWeightOnlyModels, required: QwenWeightOnlyModel.requiredFiles,
-                              manifest: qwenWeightOnlyModelManifestURL, version: QwenWeightOnlyModel.version)
     }
 
     func importDefaultQwenModelsIfComplete() throws -> ModelReceipt? {
