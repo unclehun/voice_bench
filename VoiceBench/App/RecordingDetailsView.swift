@@ -64,7 +64,12 @@ struct RecordingDetailsView: View {
                                         .buttonStyle(.borderless).disabled(!model.idle || run.rawText.isEmpty)
                                 }
                             }
-                            if run.hasCorrectionAttempts { CorrectionResultsView(run: run, showDetails: true) }
+                            if run.hasCorrectionAttempts {
+                                CorrectionResultsView(run: run, showDetails: true, reviewEnabled: model.idle) { provider, changeID, accept in
+                                    model.reviewCorrection(changeID: changeID, accept: accept, provider: provider,
+                                                           runID: run.id, recordingID: recordingID)
+                                }
+                            }
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(run.engine.title)

@@ -26,5 +26,5 @@ public extension Recording {
 }
 
 public extension Correction {
-    var hasResult: Bool { (status == "completed" || status == "partial") && text != nil }
+    var hasResult: Bool { ["completed", "partial", "cancelled", "interrupted"].contains(status) && text != nil }
 }

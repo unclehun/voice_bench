@@ -36,7 +36,7 @@ public extension Correction {
         switch status {
         case "not_requested": return "尚未纠错"
         case "running": return "纠错中"
-        case "completed": return "完成"
+        case "completed": return "处理完成"
         case "partial": return "部分完成"
         case "failed": return "失败"
         case "cancelled": return "已停止"

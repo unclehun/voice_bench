@@ -47,18 +47,4 @@ public enum Evaluation {
         return CER(substitutions: last.s, deletions: last.d, insertions: last.i,
                    referenceCount: a.count, hypothesisCount: b.count)
     }
-    public static func chunks(_ text: String, size: Int = 400) -> [String] {
-        guard size > 0 else { return [] }
-        let chars = Array(text)
-        return stride(from: 0, to: chars.count, by: size).map { String(chars[$0..<min($0 + size, chars.count)]) }
-    }
-    /// Conservative gate: every changed chunk containing sensitive facts needs manual review.
-    public static func correctionCanApply(original: String, proposed: String) -> Bool {
-        if original == proposed { return true }
-        guard !proposed.isEmpty, proposed.count <= max(original.count * 2, original.count + 20) else { return false }
-        let risky = CharacterSet(charactersIn: "0123456789零〇一二三四五六七八九十百千万亿两不没未无非别勿父母爸妈哥姐弟妹夫妻年月日岁元百分")
-        if (original + proposed).unicodeScalars.contains(where: { risky.contains($0) }) { return false }
-        let metric = cer(reference: original, hypothesis: proposed)
-        return (metric.rate ?? 0) <= 0.25
-    }
 }

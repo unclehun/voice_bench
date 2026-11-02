@@ -486,6 +486,8 @@ final class BenchViewModel: ObservableObject {
                 if flag.isCancelled || Task.isCancelled { break }
                 for provider in CorrectionProvider.allCases {
                     var initial = provider == .apple ? Correction() : DeepSeekTextCorrector.initialCorrection(context: recording.context)
+                    initial.policyVersion = SemanticCorrection.policyVersion
+                    initial.promptVersion = SemanticCorrection.promptVersion
                     initial.context = recording.context; initial.status = "running"
                     await updateCorrection(initial, provider: provider, runID: run.id, recordingID: recording.id)
                 }
@@ -505,6 +507,29 @@ final class BenchViewModel: ObservableObject {
             await self?.updateCorrection(correction, provider: .apple, runID: run.id, recordingID: recording.id)
         }
         await updateCorrection(result, provider: .apple, runID: run.id, recordingID: recording.id)
+    }
+
+    func reviewCorrection(changeID: UUID, accept: Bool, provider: CorrectionProvider, runID: UUID, recordingID: UUID) {
+        guard idle, let store, var recording = recordings.first(where: { $0.id == recordingID }),
+              var run = recording.runs.first(where: { $0.id == runID }) else { return }
+        var correction = run.correction(for: provider)
+        do { try correction.review(changeID: changeID, accept: accept) }
+        catch { self.error = error.localizedDescription; return }
+        run.setCorrection(correction, for: provider)
+        guard let runIndex = recording.runs.firstIndex(where: { $0.id == runID }) else { return }
+        recording.runs[runIndex] = run
+        recording.revision += 1
+        let snapshot = recording
+        begin("正在保存纠错选择…", recordingID: recordingID)
+        task = Task {
+            defer { finish() }
+            do {
+                try await store.save(snapshot)
+                if let index = recordings.firstIndex(where: { $0.id == recordingID }) { recordings[index] = snapshot }
+                evaluations[runID] = nil
+                message = accept ? "已接受这处修改；原始识别始终保留。" : "这处已恢复原文。"
+            } catch { self.error = "保存纠错选择失败：\(error.localizedDescription)" }
+        }
     }
 
     private func correctWithDeepSeek(_ run: Run, recording: Recording, apiKey: String?, credentialFailure: String?,

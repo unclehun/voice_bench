@@ -2,6 +2,7 @@
 
 - 原始录音：`Library/Application Support/VoiceBench/Audio`。
 - 识别、纠错、参考稿和背景：同目录下的 `Records`，每条录音一个 JSON。
+- 新版纠错保存逐条建议的原文位置、语境依据、采纳规则版本与人工接受／保留选择；撤销从不可变的原始识别重建，不覆盖原始识别。旧纠错保持原有结果，重新执行后才使用新规则。全文语义摘要仅为该次纠错的辅助上下文，不作为事实依据。
 - SenseVoice 模型：`Models`；默认导入源为 `Documents/SenseVoiceSmall_INT8`。
 - Qwen 4 位模型：`QwenWeightOnlyModels`；默认导入源为 `Documents/Qwen3ASR_0_6B_WeightOnly4`。沿用已部署目录和模型版本，覆盖更新无需重新导入。
 - Apple 语言设置：`Settings/apple-speech.json`。

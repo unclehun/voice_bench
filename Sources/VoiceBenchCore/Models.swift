@@ -37,6 +37,9 @@ public struct CorrectionBlock: Codable, Identifiable, Sendable {
     public var proposed: String?
     public var applied: String
     public var note: String
+    /// Nil for records produced by the original whole-block corrector.
+    public var changes: [CorrectionChange]?
+    public var state: String?
     public init(id: Int, original: String, proposed: String?, applied: String, note: String) {
         self.id = id; self.original = original; self.proposed = proposed; self.applied = applied; self.note = note
     }
@@ -47,11 +50,14 @@ public struct Correction: Codable, Sendable {
     public var text: String?
     public var elapsedMS: Double?
     public var model = "system-managed/unknown"
-    public var promptVersion = "minimal-proofread-v1"
+    public var promptVersion = SemanticCorrection.promptVersion
     public var promptHash: String?
     public var context: String = ""
     public var blocks: [CorrectionBlock] = []
     public var error: String?
+    public var policyVersion: String?
+    public var semanticOverview: String?
+    public var phase: String?
     public init() {}
 }
 
@@ -108,14 +114,8 @@ public struct Recording: Codable, Identifiable, Sendable {
                 runs[index].status = .interrupted
                 runs[index].error = "上次运行未正常结束，请重新执行。"
             }
-            if runs[index].correction.status == "running" {
-                runs[index].correction.status = "interrupted"
-                runs[index].correction.error = "上次纠错未正常结束。"
-            }
-            if runs[index].deepSeekCorrection?.status == "running" {
-                runs[index].deepSeekCorrection?.status = "interrupted"
-                runs[index].deepSeekCorrection?.error = "上次 DeepSeek 纠错未正常结束。"
-            }
+            runs[index].correction.recoverInterruption()
+            runs[index].deepSeekCorrection?.recoverInterruption()
         }
     }
 }

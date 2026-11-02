@@ -11,7 +11,7 @@ public struct RunEvaluation: Codable, Sendable {
 }
 
 public struct Report: Codable, Sendable {
-    public var schemaVersion = 2
+    public var schemaVersion = 3
     public var exportedAt = Date()
     public var normalizationVersion = Evaluation.normalizationVersion
     public var environment: [String: String]
@@ -84,8 +84,14 @@ public struct Report: Codable, Sendable {
             for provider in CorrectionProvider.allCases {
                 let correction = run.correction(for: provider)
                 lines += ["", "### \(provider.title)", "", "纠错状态：\(correction.status)；模型：\(correction.model)；耗时：\(format(correction.elapsedMS)) ms",
-                          "", "提示词版本：\(correction.promptVersion)；SHA-256：\(correction.promptHash ?? "未记录")"]
+                          "", "提示词版本：\(correction.promptVersion)；SHA-256：\(correction.promptHash ?? "未记录")",
+                          "", "采纳规则：\(correction.policyVersion ?? "旧版整块规则")；\(correction.resultSummary)"]
                 if correction.hasResult, let corrected = correction.text { lines += ["", "纠错文字：", "", corrected] }
+                for change in correction.changes {
+                    lines += ["", "- \(change.decision.title)：\(change.proposal.original) → \(change.proposal.replacement)",
+                              "  - 本机检查：\(change.policyReason)", "  - 语境引用：\(change.proposal.evidence)",
+                              "  - 模型依据：\(change.proposal.reason)"]
+                }
                 if let error = correction.error { lines += ["", "纠错错误：\(error)"] }
             }
             if let locale = run.configuration["apple_locale"] {

@@ -76,7 +76,10 @@ struct RecordingCard: View {
                     ForEach(runs.filter { $0.hasCorrectionAttempts }) { run in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(run.engine.title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                            CorrectionResultsView(run: run)
+                            CorrectionResultsView(run: run, reviewEnabled: model.idle) { provider, changeID, accept in
+                                model.reviewCorrection(changeID: changeID, accept: accept, provider: provider,
+                                                       runID: run.id, recordingID: recording.id)
+                            }
                         }
                     }
                 }
