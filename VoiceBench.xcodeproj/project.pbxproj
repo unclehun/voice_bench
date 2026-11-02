@@ -23,6 +23,7 @@
 		5EB6F6099C51A9FEB46511CF /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70B21BAD8AD25E04275023BB /* Accelerate.framework */; };
 		76BCB465AFC67C8B0BC26C17 /* FoundationModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 68471BF46FAE67A11C7720B9 /* FoundationModels.framework */; };
 		78F921D7A8E29F38EFA96EFB /* QwenSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */; };
+		98668D6DF1B8B9A6FC158535 /* RunResultCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C14DE4590B8CA6450854B1 /* RunResultCard.swift */; };
 		9FCE048E15914717C4534F9A /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 41369DDD178EF59E2F87F316 /* CoreML.framework */; };
 		A37D2FD34B5CD66E20E5E618 /* model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = A7148698F0BFFF89EB1F680E /* model-manifest.json */; };
 		A6B0E6357AF0608228E851C1 /* BenchComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFAC48F57F95795D0A41AAFF /* BenchComponents.swift */; };
@@ -80,6 +81,7 @@
 		DCAF3C3555C2CCB14DEA2F9E /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		E34FB7B837F7D979952BD186 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		EE258286945865F403F204F7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F1C14DE4590B8CA6450854B1 /* RunResultCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunResultCard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -174,6 +176,7 @@
 				0B898DCB06C8A56FC84DA03C /* RecordingCard.swift */,
 				46704A2995941648A1BC0D58 /* RecordingDetailsView.swift */,
 				941E43A1051BC579DE6DE723 /* RecordingSheet.swift */,
+				F1C14DE4590B8CA6450854B1 /* RunResultCard.swift */,
 				4B3C2675E1EE397E670D2A0F /* VoiceBenchApp.swift */,
 			);
 			path = App;
@@ -316,6 +319,7 @@
 				F60A614344176EFE93C5EBBF /* RecordingCard.swift in Sources */,
 				F4E1EA9821ED845D337C27AB /* RecordingDetailsView.swift in Sources */,
 				E6A77D00A88C0E4F9F2C8030 /* RecordingSheet.swift in Sources */,
+				98668D6DF1B8B9A6FC158535 /* RunResultCard.swift in Sources */,
 				2FEBDE7BD4A196C2146881BD /* SenseVoiceEngine.swift in Sources */,
 				AC7C72EB89CA290847180BE6 /* VoiceBenchApp.swift in Sources */,
 			);
@@ -378,7 +382,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.10.0;
+				MARKETING_VERSION = 0.10.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -467,7 +471,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.10.0;
+				MARKETING_VERSION = 0.10.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

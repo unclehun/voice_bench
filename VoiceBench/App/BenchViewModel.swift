@@ -460,21 +460,12 @@ final class BenchViewModel: ObservableObject {
         run(comparisonEngines, recordingID: recordingID)
     }
 
-    func correctLatest(recordingID: UUID) {
-        guard let recording = recordings.first(where: { $0.id == recordingID }) else { return }
-        correct(recording.correctionCandidates, recording: recording)
-    }
-
     func correct(runID: UUID, recordingID: UUID) {
-        guard let recording = recordings.first(where: { $0.id == recordingID }),
-              let run = recording.runs.first(where: { $0.id == runID }), run.status == .completed else { return }
-        correct([run], recording: recording)
-    }
-
-    private func correct(_ runs: [Run], recording: Recording) {
-        guard idle, !runs.isEmpty else { return }
+        guard idle, let recording = recordings.first(where: { $0.id == recordingID }),
+              let run = recording.runs.first(where: { $0.id == runID }), run.status == .completed,
+              !run.rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         stopPlayback(); selectedID = recording.id
-        begin("正在并行启动 Apple / DeepSeek 纠错…", recordingID: recording.id, activity: .correction)
+        begin("正在启动 \(run.engine.title) 此次识别的纠错…", recordingID: recording.id, activity: .correction)
         let flag = cancellation
         task = Task {
             defer { finish() }
@@ -482,23 +473,21 @@ final class BenchViewModel: ObservableObject {
             let credentialFailure: String?
             do { key = try credentials.read(); credentialFailure = nil }
             catch { key = nil; credentialFailure = error.localizedDescription }
-            for run in runs {
-                if flag.isCancelled || Task.isCancelled { break }
-                for provider in CorrectionProvider.allCases {
-                    var initial = provider == .apple ? Correction() : DeepSeekTextCorrector.initialCorrection(context: recording.context)
-                    initial.policyVersion = SemanticCorrection.policyVersion
-                    initial.promptVersion = SemanticCorrection.promptVersion
-                    initial.context = recording.context; initial.status = "running"
-                    await updateCorrection(initial, provider: provider, runID: run.id, recordingID: recording.id)
-                }
-                message = "\(run.engine.title)：Apple 本地与 DeepSeek 公网纠错同时运行…"
-                // Structured children inherit cancellation; each persists independently as soon as it finishes.
-                async let local: Void = correctWithApple(run, recording: recording, flag: flag)
-                async let remote: Void = correctWithDeepSeek(run, recording: recording, apiKey: key,
-                                                            credentialFailure: credentialFailure, flag: flag)
-                _ = await (local, remote)
+            guard !flag.isCancelled, !Task.isCancelled else { return }
+            for provider in CorrectionProvider.allCases {
+                var initial = provider == .apple ? Correction() : DeepSeekTextCorrector.initialCorrection(context: recording.context)
+                initial.policyVersion = SemanticCorrection.policyVersion
+                initial.promptVersion = SemanticCorrection.promptVersion
+                initial.context = recording.context; initial.status = "running"
+                await updateCorrection(initial, provider: provider, runID: run.id, recordingID: recording.id)
             }
-            message = flag.isCancelled ? "纠错已停止，已完成的模型结果仍保留。" : "纠错已结束，Apple 与 DeepSeek 的状态和结果已分别展示。"
+            message = "\(run.engine.title)：Apple 本地与 DeepSeek 公网纠错同时运行…"
+            // Both providers operate only on the selected run; each persists independently.
+            async let local: Void = correctWithApple(run, recording: recording, flag: flag)
+            async let remote: Void = correctWithDeepSeek(run, recording: recording, apiKey: key,
+                                                        credentialFailure: credentialFailure, flag: flag)
+            _ = await (local, remote)
+            message = flag.isCancelled ? "纠错已停止，已完成的结果仍保留。" : "\(run.engine.title) 此次识别的纠错已结束。"
         }
     }
 

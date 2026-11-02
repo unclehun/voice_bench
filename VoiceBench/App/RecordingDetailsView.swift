@@ -41,35 +41,7 @@ struct RecordingDetailsView: View {
                     if recording.runs.isEmpty { Text("尚无识别结果").foregroundStyle(.secondary) }
                     ForEach(recording.runs.reversed()) { run in
                         DisclosureGroup {
-                            RunTranscriptView(run: run)
-                            Text("初始化 \(BenchFormat.seconds(run.preparationMS)) · 处理 \(BenchFormat.seconds(run.transcriptionMS))")
-                                .font(.caption).foregroundStyle(.secondary)
-                            if let rtf = run.rtf(duration: recording.duration) {
-                                Text(String(format: "RTF %.3f", rtf)).font(.caption).foregroundStyle(.secondary)
-                            }
-                            if let evaluation = model.evaluations[run.id] {
-                                Text("原文 CER \(BenchFormat.percent(evaluation.rawCER?.rate)) · Apple 纠错 \(BenchFormat.percent(evaluation.correctedCER?.rate)) · DeepSeek 纠错 \(BenchFormat.percent(evaluation.deepSeekCER?.rate))")
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            if run.status == .completed {
-                                if run.hasCorrectionAttempts {
-                                    Menu("纠错操作") {
-                                        Button("重新运行 Apple + DeepSeek 纠错", systemImage: "arrow.clockwise") {
-                                            model.correct(runID: run.id, recordingID: recordingID)
-                                        }
-                                    }
-                                    .disabled(!model.idle || run.rawText.isEmpty)
-                                } else {
-                                    Button("运行 Apple + DeepSeek 纠错") { model.correct(runID: run.id, recordingID: recordingID) }
-                                        .buttonStyle(.borderless).disabled(!model.idle || run.rawText.isEmpty)
-                                }
-                            }
-                            if run.hasCorrectionAttempts {
-                                CorrectionResultsView(run: run, showDetails: true, reviewEnabled: model.idle) { provider, changeID, accept in
-                                    model.reviewCorrection(changeID: changeID, accept: accept, provider: provider,
-                                                           runID: run.id, recordingID: recordingID)
-                                }
-                            }
+                            RunResultCard(model: model, recordingID: recordingID, run: run, showDetails: true)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(run.engine.title)
