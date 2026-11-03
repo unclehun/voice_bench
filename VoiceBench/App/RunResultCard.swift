@@ -51,6 +51,8 @@ struct RunResultCard: View {
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.secondary.opacity(0.16)))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("recognition.result.\(run.id)")
+        // Also used inside Form/DisclosureGroup: each button must handle only its own tap.
+        .buttonStyle(.borderless)
         .onChange(of: run.id) { _, _ in correctionExpanded = true }
         .onChange(of: correcting) { _, value in if value { correctionExpanded = true } }
     }
@@ -60,7 +62,7 @@ struct RunResultCard: View {
         if run.hasCorrectionAttempts {
             HStack(spacing: 12) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { correctionExpanded.toggle() }
+                    correctionExpanded.toggle()
                 } label: {
                     Label(correctionExpanded ? "收起纠错结果" : "查看纠错结果与状态",
                           systemImage: correctionExpanded ? "chevron.up" : "chevron.down")

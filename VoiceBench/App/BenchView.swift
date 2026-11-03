@@ -10,8 +10,9 @@ struct BenchView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 18) {
-                    if model.busy { WorkStatusView(model: model) }
+                // Cards contain expandable transcripts and reviews. Keep their measured heights
+                // and local expansion state instead of estimating offscreen card heights.
+                VStack(spacing: 18) {
                     if model.recordings.isEmpty {
                         emptyState
                     } else {
@@ -30,6 +31,7 @@ struct BenchView: View {
                 }
                 .padding(.horizontal, 18).padding(.vertical, 20)
             }
+            .benchWorkStatus(model: model)
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("语音对比")
             .navigationBarTitleDisplayMode(.inline)
@@ -88,7 +90,7 @@ struct WorkStatusView: View {
             ProgressView()
             Text(model.message).font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
             if model.activity != nil && !model.isClearingData {
-                Button("停止") { model.cancel() }.font(.footnote)
+                Button("停止") { model.cancel() }.font(.footnote).buttonStyle(.borderless)
             }
         }
         .padding(14).background(.background, in: RoundedRectangle(cornerRadius: 16))

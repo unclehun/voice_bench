@@ -20,6 +20,8 @@ jobs:
           test -d "$DEVELOPER_DIR"
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
+      - name: Test correction presentation and decisions
+        run: swift test
       - uses: actions/cache@v4
         with:
           path: |

@@ -25,6 +25,16 @@ private struct CorrectionResultView: View {
     let review: ((CorrectionProvider, UUID, Bool) -> Void)?
     @State private var detailsExpanded = false
 
+    init(provider: CorrectionProvider, correction: Correction, showDetails: Bool, reviewEnabled: Bool,
+         review: ((CorrectionProvider, UUID, Bool) -> Void)?) {
+        self.provider = provider
+        self.correction = correction
+        self.showDetails = showDetails
+        self.reviewEnabled = reviewEnabled
+        self.review = review
+        _detailsExpanded = State(initialValue: showDetails)
+    }
+
     private var color: Color {
         if correction.status == "failed" { return .red }
         if correction.pendingChangeCount > 0 || correction.rejectedChangeCount > 0 || correction.status == "partial" { return .orange }
@@ -47,8 +57,12 @@ private struct CorrectionResultView: View {
                 Text(correction.resultSummary).font(.subheadline.weight(.medium)).foregroundStyle(color)
             }
             if correction.hasResult, let text = correction.text {
-                Text("当前采用文字").font(.caption).foregroundStyle(.secondary)
-                ExpandableTranscript(text: text)
+                Text("纠错后段落").font(.caption).foregroundStyle(.secondary)
+                let edits = correction.displayEdits
+                if edits.contains(where: { $0.kind != .unchanged }) {
+                    Text("红色删除线：修改前 · 绿色：修改后").font(.caption2).foregroundStyle(.secondary)
+                }
+                ExpandableTranscript(text: text, edits: edits)
             }
             if correction.status == "running" {
                 Text(correction.phase == "overview" ? "正在理解全文主题、人物指代与术语…" :
@@ -83,7 +97,6 @@ private struct CorrectionResultView: View {
         .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("correction.result.\(provider.rawValue)")
-        .onAppear { if showDetails { detailsExpanded = true } }
     }
 
     private func changeView(_ change: CorrectionChange) -> some View {
@@ -104,14 +117,16 @@ private struct CorrectionResultView: View {
             }
             if correction.canReview, review != nil, change.disposition != .rejected {
                 HStack(spacing: 16) {
-                    if change.decision == .pending || change.decision == .kept {
-                        Button("接受此修改") { review?(provider, change.id, true) }
-                            .tint(.blue).accessibilityIdentifier("correction.accept.\(change.id)")
+                    // Keep both controls in place as the decision changes so review rows
+                    // do not lose/recreate the tapped button or change their layout.
+                    Button(change.decision.isApplied ? "已采用修改" : "接受此修改") { review?(provider, change.id, true) }
+                        .disabled(change.decision.isApplied)
+                        .tint(.blue).accessibilityIdentifier("correction.accept.\(change.id)")
+                    Button(change.decision == .kept ? "已保留原文" : change.decision.isApplied ? "撤销修改" : "保留原文") {
+                        review?(provider, change.id, false)
                     }
-                    if change.decision != .kept {
-                        Button(change.decision.isApplied ? "撤销修改" : "保留原文") { review?(provider, change.id, false) }
-                            .tint(.secondary).accessibilityIdentifier("correction.keep.\(change.id)")
-                    }
+                    .disabled(change.decision == .kept)
+                    .tint(.secondary).accessibilityIdentifier("correction.keep.\(change.id)")
                 }
                 .font(.caption).buttonStyle(.bordered).disabled(!reviewEnabled)
             }

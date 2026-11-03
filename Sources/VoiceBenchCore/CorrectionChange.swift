@@ -59,19 +59,43 @@ public extension CorrectionBlock {
     }
 
     static func render(original: String, changes: [CorrectionChange]) -> String {
+        displayEdits(original: original, changes: changes)
+            .filter { $0.kind != .removed }.map(\.text).joined()
+    }
+
+    /// The same validated source ranges drive both plain text and inline review markup.
+    /// Keep each replacement paired with its entire original, even if they share characters.
+    static func displayEdits(original: String, changes: [CorrectionChange]) -> [TextEdit] {
         let source = Array(original)
-        var cursor = 0, result = ""
+        var cursor = 0, result: [TextEdit] = []
         for change in changes.sorted(by: { ($0.start ?? Int.max) < ($1.start ?? Int.max) }) {
             guard let start = change.start, let end = change.end, start >= cursor, end > start, end <= source.count,
                   String(source[start..<end]) == change.proposal.original else { continue }
-            result += String(source[cursor..<start]) + change.proposal.replacement
+            if start > cursor { result.append(TextEdit(kind: .unchanged, text: String(source[cursor..<start]))) }
+            result.append(TextEdit(kind: .removed, text: change.proposal.original))
+            if !change.proposal.replacement.isEmpty {
+                result.append(TextEdit(kind: .added, text: change.proposal.replacement))
+            }
             cursor = end
         }
-        return result + String(source[cursor...])
+        if cursor < source.count { result.append(TextEdit(kind: .unchanged, text: String(source[cursor...]))) }
+        return result
     }
 }
 
 public extension Correction {
+    /// Pending, kept and rejected suggestions leave the paragraph unchanged.
+    /// Legacy results have no source ranges, so diff their saved blocks individually.
+    var displayEdits: [TextEdit] {
+        guard !blocks.isEmpty else { return text.map { [TextEdit(kind: .unchanged, text: $0)] } ?? [] }
+        return blocks.flatMap { block in
+            if let changes = block.changes {
+                return CorrectionBlock.displayEdits(original: block.original, changes: changes.filter { $0.decision.isApplied })
+            }
+            return TextDiff.edits(from: block.original, to: block.applied)
+        }
+    }
+
     var changes: [CorrectionChange] { blocks.flatMap { $0.changes ?? [] } }
     var appliedChangeCount: Int { changes.filter { $0.decision.isApplied && !$0.isFormatOnly }.count }
     var formatChangeCount: Int { changes.filter { $0.decision.isApplied && $0.isFormatOnly }.count }

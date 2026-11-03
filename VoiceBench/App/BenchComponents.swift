@@ -14,6 +14,18 @@ enum BenchFormat {
 }
 
 extension View {
+    /// Status changes must not insert/remove rows above the user's current position.
+    @MainActor
+    func benchWorkStatus(model: BenchViewModel) -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            if model.busy {
+                WorkStatusView(model: model)
+                    .padding(.horizontal, 18).padding(.vertical, 8)
+                    .background(.bar)
+            }
+        }
+    }
+
     @MainActor
     func benchErrorAlert(model: BenchViewModel, enabled: Bool = true) -> some View {
         alert("操作未完成", isPresented: Binding(

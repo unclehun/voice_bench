@@ -9,7 +9,6 @@ struct RecordingDetailsView: View {
     var body: some View {
         Form {
             if let recording {
-                if model.busy { Section { WorkStatusView(model: model) } }
                 Section("录音") {
                     LabeledContent("时长", value: BenchFormat.clock(recording.duration))
                     LabeledContent("音频", value: "\(Int(recording.sampleRate)) Hz · \(recording.channels) 声道")
@@ -63,6 +62,7 @@ struct RecordingDetailsView: View {
                 }
             } else { Text("该录音已删除。").foregroundStyle(.secondary) }
         }
+        .benchWorkStatus(model: model)
         .navigationTitle(recording?.name ?? "录音详情").navigationBarTitleDisplayMode(.inline)
         .onAppear { model.selectedID = recordingID }
     }

@@ -103,12 +103,27 @@ struct RunTranscriptView: View {
 
 struct ExpandableTranscript: View {
     let text: String
+    var edits: [TextEdit]? = nil
     @State private var expanded = false
+
+    private var displayCount: Int { edits?.reduce(0) { $0 + $1.text.count } ?? text.count }
+
+    private var displayText: Text {
+        guard let edits else { return Text(text) }
+        return edits.reduce(Text("")) { text, edit in
+            switch edit.kind {
+            case .unchanged: return text + Text(edit.text)
+            case .removed: return text + Text(edit.text).foregroundColor(.red).strikethrough()
+            case .added: return text + Text(edit.text).foregroundColor(.green)
+            }
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(text).font(.subheadline).lineLimit(expanded || text.count <= 160 ? nil : 6)
+            displayText.font(.subheadline).lineLimit(expanded || displayCount <= 160 ? nil : 6)
                 .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-            if text.count > 160 {
+            if displayCount > 160 {
                 Button(expanded ? "收起文字" : "展开全文") { expanded.toggle() }
                     .font(.caption).buttonStyle(.plain).foregroundStyle(.tint)
             }

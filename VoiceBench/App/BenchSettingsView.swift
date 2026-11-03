@@ -11,7 +11,6 @@ struct BenchSettingsView: View {
 
     var body: some View {
         Form {
-            if model.busy { Section { WorkStatusView(model: model) } }
             Section("模型选择和配置") {
                 status("SenseVoiceSmall INT8", detail: model.modelDetail, ready: model.modelReceipt != nil)
                 Button("从默认目录载入 SenseVoice") { model.importDefaultModels() }.disabled(!model.idle)
@@ -71,6 +70,7 @@ struct BenchSettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
+        .benchWorkStatus(model: model)
         .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
         .onDisappear { deepSeekAPIKey = "" }
         .toolbar {
