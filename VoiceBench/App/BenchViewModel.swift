@@ -513,9 +513,9 @@ final class BenchViewModel: ObservableObject {
             failure.status = "failed"; failure.error = credentialFailure
             result = failure
         } else {
-            result = await deepSeekCorrector.correct(original: run.rawText, context: recording.context, apiKey: apiKey, cancellation: flag) { [weak self] correction in
-                await self?.updateCorrection(correction, runID: run.id, recordingID: recording.id)
-            }
+            result = await deepSeekCorrector.correct(original: run.rawText, context: recording.context, apiKey: apiKey, cancellation: flag,
+                log: { [weak self] log in await self?.recordDeepSeekLog(log, runID: run.id, recordingID: recording.id) },
+                progress: { [weak self] correction in await self?.updateCorrection(correction, runID: run.id, recordingID: recording.id) })
         }
         await updateCorrection(result, runID: run.id, recordingID: recording.id)
     }
@@ -635,6 +635,16 @@ final class BenchViewModel: ObservableObject {
         catch { self.error = "保存片段失败：\(error.localizedDescription)"; flag.cancel() }
         message = "\(run.engine.title) 已完成 \(run.segments.count) 个片段"
     }
+    private func recordDeepSeekLog(_ log: DeepSeekRequestLog, runID: UUID, recordingID: UUID) async {
+        guard let index = recordings.firstIndex(where: { $0.id == recordingID }),
+              let runIndex = recordings[index].runs.firstIndex(where: { $0.id == runID }) else { return }
+        recordings[index].runs[runIndex].recordDeepSeekLog(log)
+        recordings[index].revision += 1
+        let snapshot = recordings[index]
+        do { try await store?.save(snapshot) }
+        catch { self.error = "DeepSeek 日志保存失败：\(error.localizedDescription)" }
+    }
+
     private func updateCorrection(_ correction: Correction, runID: UUID, recordingID: UUID) async {
         guard var run = findRun(runID, recordingID: recordingID) else { return }
         run.deepSeekCorrection = correction

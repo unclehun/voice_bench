@@ -89,6 +89,7 @@ public struct Run: Codable, Identifiable, Sendable {
     public var configuration: [String: String] = [:]
     /// Optional because recordings may predate DeepSeek support or have no correction yet.
     public var deepSeekCorrection: Correction?
+    public var deepSeekRequestLogs: [DeepSeekRequestLog]?
     public init(engine: EngineID) {
         self.engine = engine
         switch engine {

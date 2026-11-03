@@ -1,4 +1,4 @@
-# 全文纠错设计 · 0.12.0
+# 全文纠错设计 · 0.12.1
 
 ## 请求与模型职责
 
@@ -26,7 +26,7 @@ DeepSeek 使用 `/beta/chat/completions`、强制单个 `submit_document_correct
 
 ## 验证
 
-新增两组测试覆盖全文工作流和 DeepSeek 实际客户端（URLProtocol 模拟接口），连同展示及旧数据清理测试共 33 组：长文一次完整传入、背景保真、远处证据、重复词全文偏移、20 条建议一次返回、同全文重试、取消、失败保留原文、不完整输出、逐条复核、存储、旧版兼容、CER、schema 必需字段、缺字段与无效 JSON、空白／截断／错误工具、鉴权及上下文错误等。
+新增两组测试覆盖全文工作流和 DeepSeek 实际客户端（URLProtocol 模拟接口），连同展示及旧数据清理测试共 40 组：长文一次完整传入、背景保真、远处证据、重复词全文偏移、20 条建议一次返回、同全文重试、取消、失败保留原文、不完整输出、逐条复核、存储、旧版兼容、CER、schema 必需字段、缺字段与无效 JSON、空白／截断／错误工具、鉴权及上下文错误等。
 
 完整核心模块已在本机由 swiftc 编译通过；测试方法使用独立断言驱动通过。标准 `swift test` 受当前 Command Line Tools 缺少 Xcode PlatformPath／XCTest 阻塞，CI 保持运行标准测试。SwiftUI 源码通过语法解析；完整 iOS 类型检查及安装仍需完整 Xcode。
 
@@ -48,3 +48,11 @@ DeepSeek 使用 `/beta/chat/completions`、强制单个 `submit_document_correct
 ## 官方依据
 
 - [DeepSeek strict 工具调用](https://api-docs.deepseek.com/guides/tool_calls/#strict-mode-beta)
+
+## 0.12.1 返回诊断与兼容
+
+官方工具调用的解析位置仍为 choices[0].message.tool_calls[0].function.arguments。实际抓到的响应却出现了 arguments={"function_calls":{"edits":[...],"has_more":false}}，与请求根 schema 不同。新版只对这个精确、无歧义的单层包装解包，并继续执行全部字段与原文语义校验；混合根结构、缺字段、无效类型均不默认成无修改。
+
+每次尝试单独记录请求正文、完整 HTTP body 和 arguments 原文，收到响应后先落盘再解码。解析错误被反馈到唯一一次全文重试，请求原文不变；再次手动纠错产生新的操作 ID，前次日志仍保留。每次运行保留最近20次 HTTP 尝试，JSON 报告携带日志。App 提供日志详情、复制、分享，系统 Logger 以带编号的小段打印完整内容；已知 API Key（含多层 JSON 转义形式）与鉴权头不写入日志。
+
+手机旧版在二次成功后没有原始失败包，无法恢复此前被覆盖的记录。本次复现包及错误分析保存于 build/diagnostics/deepseek-raw-logs，修改后的解码器可从同一真实响应直接读出六条建议，无须重发。另一次对照确实捕获到服务把 has_more 错写成工具名的非法根对象：保持严格拒绝、留存原文，并通过带具体错误反馈的重试成功，不猜测或静默补写字段。

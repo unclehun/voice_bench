@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import OSLog
 
 /// Sends one full ASR transcript and user context. Audio, references and other ASR outputs never enter this interface.
 public actor DeepSeekTextCorrector {
@@ -9,10 +10,13 @@ public actor DeepSeekTextCorrector {
     public static let instructions = SemanticCorrection.instructions
     static let endpoint = URL(string: "https://api.deepseek.com/beta/chat/completions")!
     static let toolName = "submit_document_corrections"
+    private static let logger = Logger(subsystem: "com.voicebench.demo", category: "DeepSeek")
 
     private let session: URLSession
+    private let consoleLogging: Bool
 
-    public init(session: URLSession? = nil) {
+    public init(session: URLSession? = nil, consoleLogging: Bool = true) {
+        self.consoleLogging = consoleLogging
         if let session { self.session = session }
         else {
             let configuration = URLSessionConfiguration.ephemeral
@@ -43,6 +47,7 @@ public actor DeepSeekTextCorrector {
     }
 
     public func correct(original: String, context: String, apiKey: String?, cancellation: CancellationFlag,
+                        log: @escaping @Sendable (DeepSeekRequestLog) async -> Void = { _ in },
                         progress: @escaping @Sendable (Correction) async -> Void) async -> Correction {
         var output = Self.initialCorrection(context: context)
         guard !original.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -53,14 +58,25 @@ public actor DeepSeekTextCorrector {
             output.error = "请先在设置中保存 DeepSeek API Key，再进行全文纠错。"
             return output
         }
+        let operationID = UUID()
+        let attempts = RequestAttempts()
         return await CorrectionWorkflow.run(original: original, context: context, initial: output,
-            cancellation: cancellation, respond: { input in try await self.request(input, apiKey: key) },
+            cancellation: cancellation, respond: { input in
+                let (attempt, feedback) = await attempts.next()
+                do {
+                    return try await self.request(input, apiKey: key, operationID: operationID,
+                                                  attempt: attempt, feedback: feedback, log: log)
+                } catch {
+                    await attempts.failed(Self.safeMessage(error))
+                    throw error
+                }
+            },
             message: { Self.safeMessage($0) },
             retryable: { $0 is ResponseFailure || $0 is BenchError }, progress: progress)
     }
 
-    /// All required fields, including nested objects, are enforced by the official strict tool schema.
-    static func requestBody(_ input: SemanticCorrection.Input) throws -> Data {
+    /// Request the official strict schema; still validate every actual response locally.
+    static func requestBody(_ input: SemanticCorrection.Input, feedback: String? = nil) throws -> Data {
         let keys = ["original", "replacement", "anchor", "kind", "evidence", "evidence_source", "support", "reason"]
         var properties: [String: [String: Any]] = Dictionary(uniqueKeysWithValues: keys.map { ($0, ["type": "string"]) })
         properties["evidence_source"] = ["type": "string", "enum": ["transcript", "background"]]
@@ -75,10 +91,14 @@ public actor DeepSeekTextCorrector {
             "description": "Return all corrections for the complete document in one response.", "parameters": schema]
         let tool: [String: Any] = ["type": "function", "function": function]
         let choice: [String: Any] = ["type": "function", "function": ["name": toolName]]
+        var system = instructions
+        if let feedback {
+            system += "\n上一次返回未通过校验：\(feedback)\n重新阅读同一完整原文，并严格使用指定工具返回根对象：{\"edits\":[],\"has_more\":false}。edits 必须是包含所有建议的数组；无修改也必须返回空数组，不得漏掉 edits 或 has_more，不要把单条建议直接放到根对象，不要增加 function_calls 包装层。"
+        }
         let body: [String: Any] = [
             "model": model, "thinking": ["type": "disabled"], "temperature": 0,
             "max_tokens": 32768, "stream": false,
-            "messages": [["role": "system", "content": instructions], ["role": "user", "content": try input.json()]],
+            "messages": [["role": "system", "content": system], ["role": "user", "content": try input.json()]],
             "tools": [tool], "tool_choice": choice
         ]
         return try JSONSerialization.data(withJSONObject: body)
@@ -103,24 +123,100 @@ public actor DeepSeekTextCorrector {
     private struct ResponseFailure: Error { let message: String }
     private struct HTTPFailure: Error { let status: Int; let contextLimit: Bool }
 
-    private func request(_ input: SemanticCorrection.Input, apiKey: String) async throws -> SemanticCorrection.Response {
+    private actor RequestAttempts {
+        private var count = 0
+        private var feedback: String?
+        func next() -> (Int, String?) { count += 1; return (count, feedback) }
+        func failed(_ message: String) { feedback = message }
+    }
+
+    private func request(_ input: SemanticCorrection.Input, apiKey: String, operationID: UUID, attempt: Int,
+                         feedback: String?, log: @escaping @Sendable (DeepSeekRequestLog) async -> Void) async throws -> SemanticCorrection.Response {
         var request = URLRequest(url: Self.endpoint)
         request.httpMethod = "POST"
         request.timeoutInterval = 120
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try Self.requestBody(input)
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw BenchError("DeepSeek 返回了无效的网络响应。") }
-        guard (200..<300).contains(http.statusCode) else {
-            let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-            let code = (object?["error"] as? [String: Any])?["code"] as? String
-            throw HTTPFailure(status: http.statusCode, contextLimit: code == "context_length_exceeded")
+        let body = try Self.requestBody(input, feedback: feedback)
+        request.httpBody = body
+        var trace = DeepSeekRequestLog(operationID: operationID, attempt: attempt, endpoint: Self.endpoint.absoluteString,
+                                      requestBody: DeepSeekRequestLog.redact(String(decoding: body, as: UTF8.self), secret: apiKey))
+        await log(trace)
+        let start = ProcessInfo.processInfo.systemUptime
+        do {
+            let (data, response) = try await session.data(for: request)
+            trace.responseByteCount = data.count
+            trace.responseWasUTF8 = String(data: data, encoding: .utf8) != nil
+            trace.responseBody = DeepSeekRequestLog.redact(String(decoding: data, as: UTF8.self), secret: apiKey)
+            trace.state = "received"
+            if let http = response as? HTTPURLResponse {
+                trace.httpStatus = http.statusCode
+                let allowed = Set(["content-type", "x-request-id", "request-id", "cf-ray", "server"])
+                var headers: [String: String] = [:]
+                for (name, value) in http.allHeaderFields where allowed.contains(String(describing: name).lowercased()) {
+                    headers[String(describing: name)] = DeepSeekRequestLog.redact(String(describing: value), secret: apiKey)
+                }
+                trace.responseHeaders = headers
+            }
+            // Extract diagnostic content separately from the typed production decoder; never repair or adopt it here.
+            if let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+                trace.responseID = (root["id"] as? String).map { DeepSeekRequestLog.redact($0, secret: apiKey) }
+                trace.responseModel = (root["model"] as? String).map { DeepSeekRequestLog.redact($0, secret: apiKey) }
+                let choice = (root["choices"] as? [[String: Any]])?.first
+                trace.finishReason = (choice?["finish_reason"] as? String).map { DeepSeekRequestLog.redact($0, secret: apiKey) }
+                let message = choice?["message"] as? [String: Any]
+                let call = (message?["tool_calls"] as? [[String: Any]])?.first
+                let function = call?["function"] as? [String: Any]
+                trace.toolName = (function?["name"] as? String).map { DeepSeekRequestLog.redact($0, secret: apiKey) }
+                trace.arguments = (function?["arguments"] as? String).map { DeepSeekRequestLog.redact($0, secret: apiKey) }
+            }
+            trace.elapsedMS = (ProcessInfo.processInfo.systemUptime - start) * 1000
+            // Persist the complete HTTP body before parsing so a crash or retry cannot erase the evidence.
+            await log(trace)
+            guard let http = response as? HTTPURLResponse else { throw BenchError("DeepSeek 返回了无效的网络响应。") }
+            guard (200..<300).contains(http.statusCode) else {
+                let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+                let code = (object?["error"] as? [String: Any])?["code"] as? String
+                throw HTTPFailure(status: http.statusCode, contextLimit: code == "context_length_exceeded")
+            }
+            let decoded = try Self.decodeResponseDetails(data)
+            trace.normalization = decoded.normalization
+            trace.state = "succeeded"
+            trace.completedAt = Date()
+            await log(trace)
+            printTrace(trace)
+            return decoded.value
+        } catch {
+            trace.state = "failed"
+            trace.completedAt = Date()
+            trace.elapsedMS = (ProcessInfo.processInfo.systemUptime - start) * 1000
+            trace.error = DeepSeekRequestLog.redact(Self.safeMessage(error), secret: apiKey)
+            trace.errorDomain = DeepSeekRequestLog.redact((error as NSError).domain, secret: apiKey)
+            trace.errorCode = (error as NSError).code
+            await log(trace)
+            printTrace(trace)
+            throw error
         }
-        return try Self.decodeResponse(data)
+    }
+
+    private func printTrace(_ trace: DeepSeekRequestLog) {
+        guard consoleLogging else { return }
+        // Console entries have size limits; number small pieces while the durable viewer keeps the full text.
+        let characters = Array(trace.formatted)
+        let size = 200
+        let count = (characters.count + size - 1) / size
+        for index in 0..<count {
+            let end = min(characters.count, (index + 1) * size)
+            let message = "[DeepSeek \(trace.id) \(index + 1)/\(count)] " + String(characters[index * size..<end])
+            Self.logger.notice("\(message, privacy: .public)")
+        }
     }
 
     static func decodeResponse(_ data: Data) throws -> SemanticCorrection.Response {
+        try decodeResponseDetails(data).value
+    }
+
+    private static func decodeResponseDetails(_ data: Data) throws -> (value: SemanticCorrection.Response, normalization: String?) {
         let envelope: Envelope
         do { envelope = try JSONDecoder().decode(Envelope.self, from: data) }
         catch { throw ResponseFailure(message: decodingMessage(error, stage: "API 响应")) }
@@ -141,7 +237,25 @@ public actor DeepSeekTextCorrector {
         guard !arguments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw ResponseFailure(message: "DeepSeek 全文纠错返回空白内容，原文保留。" + requestID)
         }
-        do { return try JSONDecoder().decode(SemanticCorrection.Response.self, from: Data(arguments.utf8)) }
+        do {
+            var payload = Data(arguments.utf8)
+            var normalization: String?
+            var root = (try? JSONSerialization.jsonObject(with: payload)) as? [String: Any]
+            let fields: Set<String> = ["edits", "has_more"]
+            // Observed in real strict-tool responses: arguments contains one extra function_calls object.
+            // Accept only this exact unambiguous shape; no recursive searches or defaulted missing edits.
+            if let object = root, Set(object.keys) == ["function_calls"],
+               let wrapped = object["function_calls"] as? [String: Any], Set(wrapped.keys) == fields {
+                payload = try JSONSerialization.data(withJSONObject: wrapped)
+                root = wrapped
+                normalization = "解包 arguments.function_calls；原始响应和参数原文均保留"
+            }
+            let value = try JSONDecoder().decode(SemanticCorrection.Response.self, from: payload)
+            guard let object = root, Set(object.keys) == fields else {
+                throw ResponseFailure(message: "DeepSeek 纠错对象根结构不符合约定，应只包含 edits 和 has_more。" + requestID)
+            }
+            return (value, normalization)
+        } catch let failure as ResponseFailure { throw failure }
         catch { throw ResponseFailure(message: decodingMessage(error, stage: "纠错对象") + requestID) }
     }
 
@@ -174,6 +288,7 @@ public actor DeepSeekTextCorrector {
         }
         if let error = error as? URLError {
             switch error.code {
+            case .cancelled: return "DeepSeek 请求已取消。"
             case .timedOut: return "DeepSeek 全文请求超时，原文保留，请稍后重试。"
             case .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost, .cannotFindHost:
                 return "无法连接 DeepSeek，原文保留，请检查互联网连接。"

@@ -6,6 +6,7 @@
 - SenseVoice 模型：`Models`；默认导入源为 `Documents/SenseVoiceSmall_INT8`。
 - Qwen 4 位模型：`QwenWeightOnlyModels`；默认导入源为 `Documents/Qwen3ASR_0_6B_WeightOnly4`。沿用已部署目录和模型版本，覆盖更新无需重新导入。
 - Apple Speech 识别语言设置：`Settings/apple-speech.json`。
+- DeepSeek 请求日志：保存在每次运行的 `deepSeekRequestLogs`，最近 20 次 HTTP 尝试独立留档，原始返回在解析前保存，失败与成功均保留；包含完整原文／背景和响应，API Key 与鉴权头不保存。查看、复制、分享和 JSON 导出均使用去除密钥后的日志；删除录音或清除数据时一并删除。控制台按日志 ID 和序号分段打印。
 - DeepSeek API Key：`Credentials/deepseek-api-key.json`，只使用配置文件，受文件保护及所有者读写权限限制，不写入识别数据或报告。
 - 派生音频及待分享报告：App 私有 `tmp/VoiceBench`，按录音隔离；完成、取消、失败和冷启动清理。
 

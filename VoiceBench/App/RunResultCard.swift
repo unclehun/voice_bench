@@ -42,6 +42,10 @@ struct RunResultCard: View {
                 .accessibilityIdentifier("correction.results.\(run.id)")
             }
 
+            if let logs = run.deepSeekRequestLogs, !logs.isEmpty {
+                DeepSeekRequestLogsView(logs: logs)
+            }
+
             if showDetails {
                 diagnostics
             }
