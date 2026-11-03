@@ -15,7 +15,7 @@ struct RunResultCard: View {
 
     private var correcting: Bool {
         model.activity == .correction && model.activeRecordingID == recordingID &&
-        CorrectionProvider.allCases.contains { run.correction(for: $0).status == "running" }
+        run.deepSeekResult.status == "running"
     }
 
     var body: some View {
@@ -29,8 +29,8 @@ struct RunResultCard: View {
             if run.hasCorrectionAttempts && correctionExpanded {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("纠错结果").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    CorrectionResultsView(run: run, showDetails: showDetails, reviewEnabled: model.idle) { provider, changeID, accept in
-                        model.reviewCorrection(changeID: changeID, accept: accept, provider: provider,
+                    CorrectionResultsView(run: run, showDetails: showDetails, reviewEnabled: model.idle) { changeID, accept in
+                        model.reviewCorrection(changeID: changeID, accept: accept,
                                                runID: run.id, recordingID: recordingID)
                     }
                 }
@@ -59,6 +59,10 @@ struct RunResultCard: View {
 
     @ViewBuilder
     private var correctionControls: some View {
+        if canCorrect && !model.deepSeekKeyConfigured {
+            Text("请先在设置中配置 DeepSeek API Key，再进行全文纠错。")
+                .font(.caption).foregroundStyle(.secondary)
+        }
         if run.hasCorrectionAttempts {
             HStack(spacing: 12) {
                 Button {
@@ -74,13 +78,13 @@ struct RunResultCard: View {
                 .accessibilityValue(correctionExpanded ? "已展开" : "已收起")
 
                 Menu {
-                    Button("重新纠错此结果（Apple + DeepSeek）", systemImage: "arrow.clockwise") {
+                    Button("重新使用 DeepSeek 全文纠错", systemImage: "arrow.clockwise") {
                         startCorrection()
                     }
                 } label: {
                     Image(systemName: "ellipsis").frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                 }
-                .disabled(!model.idle || !canCorrect)
+                .disabled(!model.idle || !canCorrect || !model.deepSeekKeyConfigured)
                 .accessibilityLabel("\(run.engine.title) 此次识别的纠错操作")
                 .accessibilityIdentifier("correction.rerun-menu.\(run.id)")
             }
@@ -94,8 +98,8 @@ struct RunResultCard: View {
                 Label("纠错此结果", systemImage: "text.badge.checkmark")
                     .font(.subheadline).frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
             }
-            .buttonStyle(.bordered).disabled(!model.idle || !canCorrect)
-            .accessibilityLabel("纠错 \(run.engine.title) 此次识别结果，运行 Apple 与 DeepSeek")
+            .buttonStyle(.bordered).disabled(!model.idle || !canCorrect || !model.deepSeekKeyConfigured)
+            .accessibilityLabel("纠错 \(run.engine.title) 此次识别结果，使用 DeepSeek 全文纠错")
             .accessibilityIdentifier("correction.run.\(run.id)")
         }
     }
@@ -107,7 +111,7 @@ struct RunResultCard: View {
                 Text(String(format: "RTF %.3f", rtf))
             }
             if let evaluation = model.evaluations[run.id] {
-                Text("原文 CER \(BenchFormat.percent(evaluation.rawCER?.rate)) · Apple 纠错 \(BenchFormat.percent(evaluation.correctedCER?.rate)) · DeepSeek 纠错 \(BenchFormat.percent(evaluation.deepSeekCER?.rate))")
+                Text("原文 CER \(BenchFormat.percent(evaluation.rawCER?.rate)) · DeepSeek 纠错 \(BenchFormat.percent(evaluation.deepSeekCER?.rate))")
             }
         }
         .font(.caption).foregroundStyle(.secondary)

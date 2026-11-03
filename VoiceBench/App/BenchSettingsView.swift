@@ -33,7 +33,6 @@ struct BenchSettingsView: View {
                 }
                 Text("默认中文（中国大陆）。Apple 直接识别整段录音，不做前置语言检测或语言分段；切换语言后会检查对应资源。语言选择保存在 App 数据目录，重启和覆盖更新后继续使用。")
                     .font(.caption).foregroundStyle(.secondary)
-                status("本地文字纠错", detail: model.correctionUnavailable ?? "系统文字模型可用", ready: model.correctionUnavailable == nil)
             }
             Section("Qwen3-ASR 4 位") {
                 status(EngineID.qwen.title, detail: model.qwenModelDetail, ready: model.qwenModelReceipt != nil)
@@ -61,7 +60,7 @@ struct BenchSettingsView: View {
                         .disabled(!model.idle)
                 }
                 Link("获取 DeepSeek API Key", destination: URL(string: "https://platform.deepseek.com/api_keys")!)
-                Text("保存后，点击纠错会同时运行 Apple 本地模型与 DeepSeek Flash（\(DeepSeekTextCorrector.model)，非思考模式）。仅识别文字和纠错背景通过 HTTPS 发送到 DeepSeek，不发送音频或人工参考稿；API 按用量计费。Key 保存在 App 私有数据目录，重启或覆盖更新后自动读取，不写入报告。")
+                Text("保存后，点击纠错使用 DeepSeek Flash（\(DeepSeekTextCorrector.model)，非思考模式）。仅识别文字和纠错背景通过 HTTPS 发送到 DeepSeek，不发送音频或人工参考稿；API 按用量计费。Key 保存在 App 私有数据目录，重启或覆盖更新后自动读取，不写入报告。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("数据管理") {

@@ -45,14 +45,27 @@ public struct CorrectionBlock: Codable, Identifiable, Sendable {
     }
 }
 
+/// One full-transcript result. Source offsets always refer to this immutable original.
+public struct CorrectionDocument: Codable, Sendable {
+    public var original: String
+    public var changes: [CorrectionChange]
+    public var isComplete: Bool
+    public init(original: String, changes: [CorrectionChange] = [], isComplete: Bool = false) {
+        self.original = original; self.changes = changes; self.isComplete = isComplete
+    }
+}
+
 public struct Correction: Codable, Sendable {
     public var status: String = "not_requested"
     public var text: String?
     public var elapsedMS: Double?
-    public var model = "system-managed/unknown"
+    public var model = "deepseek-flash"
     public var promptVersion = SemanticCorrection.promptVersion
     public var promptHash: String?
     public var context: String = ""
+    public var document: CorrectionDocument?
+    public var attemptCount: Int?
+    /// Read-only compatibility with older segmented results; new requests never populate blocks.
     public var blocks: [CorrectionBlock] = []
     public var error: String?
     public var policyVersion: String?
@@ -74,8 +87,7 @@ public struct Run: Codable, Identifiable, Sendable {
     public var error: String?
     public var modelVersion: String
     public var configuration: [String: String] = [:]
-    public var correction = Correction()
-    /// Optional to keep recordings created before public-model correction readable.
+    /// Optional because recordings may predate DeepSeek support or have no correction yet.
     public var deepSeekCorrection: Correction?
     public init(engine: EngineID) {
         self.engine = engine
@@ -114,7 +126,6 @@ public struct Recording: Codable, Identifiable, Sendable {
                 runs[index].status = .interrupted
                 runs[index].error = "上次运行未正常结束，请重新执行。"
             }
-            runs[index].correction.recoverInterruption()
             runs[index].deepSeekCorrection?.recoverInterruption()
         }
     }

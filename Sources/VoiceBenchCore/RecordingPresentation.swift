@@ -17,7 +17,7 @@ public extension Recording {
     }
 
     var hasCorrectionResults: Bool {
-        latestComparisonRuns.contains { run in CorrectionProvider.allCases.contains { run.correction(for: $0).hasResult } }
+        latestComparisonRuns.contains { $0.deepSeekResult.hasResult }
     }
 
     var hasCorrectionAttempts: Bool {
@@ -25,6 +25,33 @@ public extension Recording {
     }
 }
 
+public extension Run {
+    var deepSeekResult: Correction { deepSeekCorrection ?? DeepSeekTextCorrector.initialCorrection() }
+    var hasCorrectionAttempts: Bool { deepSeekResult.status != "not_requested" }
+}
+
 public extension Correction {
-    var hasResult: Bool { ["completed", "partial", "cancelled", "interrupted"].contains(status) && text != nil }
+    var statusTitle: String {
+        switch status {
+        case "not_requested": return "尚未纠错"
+        case "running": return "纠错中"
+        case "completed": return "处理完成"
+        case "partial": return "部分完成"
+        case "failed": return "失败"
+        case "cancelled": return "已停止"
+        case "interrupted": return "已中断"
+        case "skipped_empty": return "无识别文字"
+        case "skipped_unconfigured": return "未配置 API Key"
+        default: return status
+        }
+    }
+
+    var hasResult: Bool {
+        guard text != nil else { return false }
+        if let document {
+            return ["completed", "partial"].contains(status) ||
+                (["cancelled", "interrupted"].contains(status) && !document.changes.isEmpty)
+        }
+        return ["completed", "partial", "cancelled", "interrupted"].contains(status)
+    }
 }

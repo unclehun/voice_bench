@@ -87,6 +87,9 @@ public extension Correction {
     /// Pending, kept and rejected suggestions leave the paragraph unchanged.
     /// Legacy results have no source ranges, so diff their saved blocks individually.
     var displayEdits: [TextEdit] {
+        if let document {
+            return CorrectionBlock.displayEdits(original: document.original, changes: document.changes.filter { $0.decision.isApplied })
+        }
         guard !blocks.isEmpty else { return text.map { [TextEdit(kind: .unchanged, text: $0)] } ?? [] }
         return blocks.flatMap { block in
             if let changes = block.changes {
@@ -96,13 +99,16 @@ public extension Correction {
         }
     }
 
-    var changes: [CorrectionChange] { blocks.flatMap { $0.changes ?? [] } }
+    var changes: [CorrectionChange] { document?.changes ?? blocks.flatMap { $0.changes ?? [] } }
+    var usesWholeDocument: Bool { document != nil || policyVersion == SemanticCorrection.policyVersion }
     var appliedChangeCount: Int { changes.filter { $0.decision.isApplied && !$0.isFormatOnly }.count }
     var formatChangeCount: Int { changes.filter { $0.decision.isApplied && $0.isFormatOnly }.count }
     var pendingChangeCount: Int { changes.filter { $0.decision == .pending }.count }
     var rejectedChangeCount: Int { changes.filter { $0.decision == .rejected }.count }
     var completedBlockCount: Int { blocks.filter { $0.state == "completed" }.count }
-    var canReview: Bool { policyVersion == SemanticCorrection.policyVersion && status != "running" }
+    var canReview: Bool {
+        [SemanticCorrection.policyVersion, "semantic-edits-v2"].contains(policyVersion ?? "") && status != "running"
+    }
 
     var resultSummary: String {
         guard policyVersion != nil else { return "旧版纠错结果；重新运行可使用逐条采纳规则" }
@@ -117,12 +123,22 @@ public extension Correction {
             return "仅格式调整 · \(formatChangeCount) 处"
         }
         if parts.isEmpty {
+            if usesWholeDocument {
+                if status == "running" { return "正在结合全文理解与纠错" }
+                if status == "completed" { return "全文校对完成，未发现可确认的修改" }
+                if status == "partial" { return "全文建议尚未完整返回，原文保留" }
+                return "全文纠错未完成，原文保留"
+            }
             return completedBlockCount > 0 ? "未发现可确认的修改" : "暂无已完成的纠错片段"
         }
         return parts.joined(separator: " · ")
     }
 
     mutating func refreshText() {
+        if let document {
+            text = CorrectionBlock.render(original: document.original, changes: document.changes.filter { $0.decision.isApplied })
+            return
+        }
         for index in blocks.indices { blocks[index].rebuild() }
         text = completedBlockCount > 0 ? blocks.map(\.applied).joined() : nil
     }
@@ -131,6 +147,11 @@ public extension Correction {
         guard status == "running" else { return }
         status = "interrupted"; error = "上次纠错未正常结束；已完成部分仍保留。"
         phase = nil
+        if document != nil {
+            error = "上次全文纠错中断，已保存的修改和原始文字保留。"
+            refreshText()
+            return
+        }
         guard policyVersion != nil else { return }
         for index in blocks.indices where ["queued", "running"].contains(blocks[index].state ?? "") {
             blocks[index].state = "unprocessed"
@@ -141,18 +162,31 @@ public extension Correction {
 
     mutating func review(changeID: UUID, accept: Bool) throws {
         guard canReview else { throw BenchError("请等待本次纠错结束；旧版建议需要重新纠错。") }
+        if let document {
+            guard let index = document.changes.firstIndex(where: { $0.id == changeID }) else {
+                throw BenchError("该纠错建议已更新，请重新打开结果。")
+            }
+            try Self.validateReview(document.changes[index], original: document.original)
+            self.document?.changes[index].decision = accept ? .accepted : .kept
+            refreshText()
+            return
+        }
         for blockIndex in blocks.indices {
             guard let changeIndex = blocks[blockIndex].changes?.firstIndex(where: { $0.id == changeID }) else { continue }
-            guard let change = blocks[blockIndex].changes?[changeIndex], change.disposition != .rejected,
-                  let start = change.start, let end = change.end, start >= 0, end > start,
-                  end <= blocks[blockIndex].original.count,
-                  String(Array(blocks[blockIndex].original)[start..<end]) == change.proposal.original else {
-                throw BenchError("该建议未通过位置或内容检查，不能采用。")
-            }
+            guard let change = blocks[blockIndex].changes?[changeIndex] else { continue }
+            try Self.validateReview(change, original: blocks[blockIndex].original)
             blocks[blockIndex].changes?[changeIndex].decision = accept ? .accepted : .kept
             refreshText()
             return
         }
         throw BenchError("该纠错建议已更新，请重新打开结果。")
+    }
+
+    private static func validateReview(_ change: CorrectionChange, original: String) throws {
+        guard change.disposition != .rejected,
+              let start = change.start, let end = change.end, start >= 0, end > start, end <= original.count,
+              String(Array(original)[start..<end]) == change.proposal.original else {
+            throw BenchError("该建议未通过位置或内容检查，不能采用。")
+        }
     }
 }

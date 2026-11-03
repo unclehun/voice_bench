@@ -21,11 +21,17 @@ public enum RetiredDataCleanup {
                 continue
             }
             if run.removeValue(forKey: "languageDetection") != nil { changed = true }
+            // This legacy key belongs exclusively to the removed on-device text corrector.
+            // Delete the full object (including source copies, suggestions and user decisions).
+            // Never reinterpret it as a DeepSeek result.
+            if run.removeValue(forKey: "correction") != nil { changed = true }
             if let configuration = run["configuration"] as? [String: Any] {
                 let cleaned = configuration.filter { key, value in
                     let name = key.lowercased()
                     return !name.contains("whisper") && !name.hasPrefix("lid_")
                         && !name.hasPrefix("language_detection") && !name.hasPrefix("language_plan")
+                        && !name.hasPrefix("apple_correction") && !name.hasPrefix("apple_text_correction")
+                        && !name.hasPrefix("foundation_models")
                         && !String(describing: value).lowercased().contains("whisper-tiny")
                 }
                 if cleaned.count != configuration.count { run["configuration"] = cleaned; changed = true }

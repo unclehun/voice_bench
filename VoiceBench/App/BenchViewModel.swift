@@ -27,7 +27,6 @@ final class BenchViewModel: ObservableObject {
     @Published var qwenModelReceipt: ModelReceipt?
     @Published var qwenModelDetail = "正在检查 Qwen 4 位模型目录…"
     @Published var speech = SpeechCapability(available: false, installed: false, detail: "正在检查…")
-    @Published var correctionUnavailable: String? = "正在检查…"
     @Published var deepSeekKeyConfigured = false
     @Published var deepSeekKeyStatus = "尚未配置 API Key"
     @Published var shareFiles: [URL] = []
@@ -37,7 +36,6 @@ final class BenchViewModel: ObservableObject {
     private let sense = SenseVoiceEngine()
     private let apple = AppleSpeechEngine()
     private let qwen = QwenSpeechEngine()
-    private let corrector = AppleTextCorrector()
     private let deepSeekCorrector = DeepSeekTextCorrector()
     private let credentials = DeepSeekCredentialStore()
     private let appleSettingsStore = AppleSpeechSettingsStore()
@@ -93,7 +91,6 @@ final class BenchViewModel: ObservableObject {
         }
         appleSupportedLocales = await apple.supportedLocaleIdentifiers()
         await refreshAppleSpeechStatus()
-        correctionUnavailable = await corrector.availability()
         do {
             if let receipt = try await store?.importDefaultQwenModelsIfComplete() {
                 qwenModelReceipt = receipt
@@ -130,7 +127,7 @@ final class BenchViewModel: ObservableObject {
     private func refreshDeepSeekKeyStatus() {
         do {
             deepSeekKeyConfigured = try credentials.read() != nil
-            deepSeekKeyStatus = deepSeekKeyConfigured ? "API Key 已保存在 App 数据目录；重启或覆盖更新后自动读取" : "尚未配置 API Key；仅运行 Apple 本地纠错"
+            deepSeekKeyStatus = deepSeekKeyConfigured ? "API Key 已保存在 App 数据目录；重启或覆盖更新后自动读取" : "尚未配置 API Key；配置后可使用全文纠错"
         } catch {
             deepSeekKeyConfigured = false
             deepSeekKeyStatus = error.localizedDescription
@@ -464,6 +461,7 @@ final class BenchViewModel: ObservableObject {
         guard idle, let recording = recordings.first(where: { $0.id == recordingID }),
               let run = recording.runs.first(where: { $0.id == runID }), run.status == .completed,
               !run.rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard deepSeekKeyConfigured else { error = "请先在设置中配置 DeepSeek API Key。"; return }
         stopPlayback(); selectedID = recording.id
         begin("正在启动 \(run.engine.title) 此次识别的纠错…", recordingID: recording.id, activity: .correction)
         let flag = cancellation
@@ -474,37 +472,23 @@ final class BenchViewModel: ObservableObject {
             do { key = try credentials.read(); credentialFailure = nil }
             catch { key = nil; credentialFailure = error.localizedDescription }
             guard !flag.isCancelled, !Task.isCancelled else { return }
-            for provider in CorrectionProvider.allCases {
-                var initial = provider == .apple ? Correction() : DeepSeekTextCorrector.initialCorrection(context: recording.context)
-                initial.policyVersion = SemanticCorrection.policyVersion
-                initial.promptVersion = SemanticCorrection.promptVersion
-                initial.context = recording.context; initial.status = "running"
-                await updateCorrection(initial, provider: provider, runID: run.id, recordingID: recording.id)
-            }
-            message = "\(run.engine.title)：Apple 本地与 DeepSeek 公网纠错同时运行…"
-            // Both providers operate only on the selected run; each persists independently.
-            async let local: Void = correctWithApple(run, recording: recording, flag: flag)
-            async let remote: Void = correctWithDeepSeek(run, recording: recording, apiKey: key,
-                                                        credentialFailure: credentialFailure, flag: flag)
-            _ = await (local, remote)
+            var initial = DeepSeekTextCorrector.initialCorrection(context: recording.context)
+            initial.status = "running"; initial.phase = "document"
+            await updateCorrection(initial, runID: run.id, recordingID: recording.id)
+            message = "\(run.engine.title)：DeepSeek 正在通读全文并纠错…"
+            await correctWithDeepSeek(run, recording: recording, apiKey: key,
+                                      credentialFailure: credentialFailure, flag: flag)
             message = flag.isCancelled ? "纠错已停止，已完成的结果仍保留。" : "\(run.engine.title) 此次识别的纠错已结束。"
         }
     }
 
-    private func correctWithApple(_ run: Run, recording: Recording, flag: CancellationFlag) async {
-        let result = await corrector.correct(original: run.rawText, context: recording.context, cancellation: flag) { [weak self] correction in
-            await self?.updateCorrection(correction, provider: .apple, runID: run.id, recordingID: recording.id)
-        }
-        await updateCorrection(result, provider: .apple, runID: run.id, recordingID: recording.id)
-    }
-
-    func reviewCorrection(changeID: UUID, accept: Bool, provider: CorrectionProvider, runID: UUID, recordingID: UUID) {
+    func reviewCorrection(changeID: UUID, accept: Bool, runID: UUID, recordingID: UUID) {
         guard idle, let store, var recording = recordings.first(where: { $0.id == recordingID }),
               var run = recording.runs.first(where: { $0.id == runID }) else { return }
-        var correction = run.correction(for: provider)
+        var correction = run.deepSeekResult
         do { try correction.review(changeID: changeID, accept: accept) }
         catch { self.error = error.localizedDescription; return }
-        run.setCorrection(correction, for: provider)
+        run.deepSeekCorrection = correction
         guard let runIndex = recording.runs.firstIndex(where: { $0.id == runID }) else { return }
         recording.runs[runIndex] = run
         recording.revision += 1
@@ -530,10 +514,10 @@ final class BenchViewModel: ObservableObject {
             result = failure
         } else {
             result = await deepSeekCorrector.correct(original: run.rawText, context: recording.context, apiKey: apiKey, cancellation: flag) { [weak self] correction in
-                await self?.updateCorrection(correction, provider: .deepSeek, runID: run.id, recordingID: recording.id)
+                await self?.updateCorrection(correction, runID: run.id, recordingID: recording.id)
             }
         }
-        await updateCorrection(result, provider: .deepSeek, runID: run.id, recordingID: recording.id)
+        await updateCorrection(result, runID: run.id, recordingID: recording.id)
     }
 
     func export(recordingID: UUID) {
@@ -651,13 +635,13 @@ final class BenchViewModel: ObservableObject {
         catch { self.error = "保存片段失败：\(error.localizedDescription)"; flag.cancel() }
         message = "\(run.engine.title) 已完成 \(run.segments.count) 个片段"
     }
-    private func updateCorrection(_ correction: Correction, provider: CorrectionProvider, runID: UUID, recordingID: UUID) async {
+    private func updateCorrection(_ correction: Correction, runID: UUID, recordingID: UUID) async {
         guard var run = findRun(runID, recordingID: recordingID) else { return }
-        run.setCorrection(correction, for: provider)
-        if interrupted && run.correction(for: provider).status == "cancelled" {
-            var value = run.correction(for: provider)
+        run.deepSeekCorrection = correction
+        if interrupted && run.deepSeekResult.status == "cancelled" {
+            var value = run.deepSeekResult
             value.status = "interrupted"; value.error = "App 进入后台或发生系统中断，纠错未完成。"
-            run.setCorrection(value, for: provider)
+            run.deepSeekCorrection = value
         }
         do { try await replace(run, recordingID: recordingID) }
         catch { self.error = "保存纠错失败：\(error.localizedDescription)"; cancellation.cancel() }
