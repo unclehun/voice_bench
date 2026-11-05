@@ -9,28 +9,20 @@ struct ModelReceipt: Codable, Sendable {
 }
 
 actor LocalStore {
-    static let requiredModels = ["model.int8.onnx", "tokens.txt", "silero_vad.onnx"]
-    static let defaultModelDirectoryName = "SenseVoiceSmall_INT8"
     let root: URL
-    let models: URL
     let qwenModels: URL
     let defaultQwenModelDirectory: URL
     let qwenModelManifestURL: URL?
     let audio: URL
-    /// This is `Documents/SenseVoiceSmall_INT8`, visible in Files as
-    /// `On My iPhone > 语音对比 (or VoiceBench) > SenseVoiceSmall_INT8`.
-    let defaultModelDirectory: URL
     let temporaryFiles: AppTemporaryFiles
     private let records: URL
     private var savedRevisions: [UUID: Int] = [:]
     private var deletedRecordings = Set<UUID>()
-    private let modelManifestURL: URL?
     private let legacyTemporaryDirectory: URL?
     private let documents: URL
-    init(baseURL: URL? = nil, modelManifestURL: URL? = nil, temporaryFiles: AppTemporaryFiles? = nil,
+    init(baseURL: URL? = nil, temporaryFiles: AppTemporaryFiles? = nil,
          documentsURL: URL? = nil, legacyTemporaryDirectory: URL? = nil, qwenModelManifestURL: URL? = nil) throws {
         let manager = FileManager.default
-        self.modelManifestURL = modelManifestURL ?? Bundle.main.url(forResource: "model-manifest", withExtension: "json")
         self.qwenModelManifestURL = qwenModelManifestURL ?? Bundle.main.url(forResource: "qwen-weight-only-model-manifest", withExtension: "json")
         #if os(iOS)
         self.legacyTemporaryDirectory = legacyTemporaryDirectory ?? (baseURL == nil ? manager.temporaryDirectory : nil)
@@ -46,17 +38,15 @@ actor LocalStore {
         if let documentsURL { documents = documentsURL }
         else if let baseURL { documents = baseURL.appendingPathComponent("Documents", isDirectory: true) }
         else { documents = try manager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) }
-        defaultModelDirectory = documents.appendingPathComponent(Self.defaultModelDirectoryName, isDirectory: true)
         self.documents = documents
         // Keep the deployed W4 directory so an update does not copy or discard its weights.
         qwenModels = root.appendingPathComponent("QwenWeightOnlyModels", isDirectory: true)
         defaultQwenModelDirectory = documents.appendingPathComponent(QwenASRModel.defaultDirectoryName, isDirectory: true)
-        models = root.appendingPathComponent("Models", isDirectory: true)
         audio = root.appendingPathComponent("Audio", isDirectory: true)
         records = root.appendingPathComponent("Records", isDirectory: true)
         self.temporaryFiles = temporaryFiles ?? baseURL.map { AppTemporaryFiles(root: $0.appendingPathComponent("Temporary")) } ?? .live
         try Self.prepareDirectories(root: root)
-        for var sourceURL in [defaultModelDirectory, defaultQwenModelDirectory] {
+        for var sourceURL in [defaultQwenModelDirectory] {
             try manager.createDirectory(at: sourceURL, withIntermediateDirectories: true)
             var sourceValues = URLResourceValues(); sourceValues.isExcludedFromBackup = true
             try sourceURL.setResourceValues(sourceValues)
@@ -77,7 +67,7 @@ actor LocalStore {
         var values = URLResourceValues(); values.isExcludedFromBackup = true
         // This demo deliberately does not put recordings/results/models into future device backups.
         try dataURL.setResourceValues(values)
-        for name in ["Models", "QwenWeightOnlyModels", "Audio", "Records"] {
+        for name in ["QwenWeightOnlyModels", "Audio", "Records"] {
             var url = root.appendingPathComponent(name, isDirectory: true)
             try manager.createDirectory(at: url, withIntermediateDirectories: true)
             try url.setResourceValues(values)
@@ -150,81 +140,6 @@ actor LocalStore {
         try AppFileSystem.removeIfPresent(metadata)
         deletedRecordings.insert(recording.id)
     }
-    func modelReceipt() -> ModelReceipt? { receipt(at: models, required: Self.requiredModels) }
-    private func receipt(at models: URL, required: [String]) -> ModelReceipt? {
-        guard let data = try? Data(contentsOf: models.appendingPathComponent("receipt.json")),
-              let receipt = try? JSONDecoder().decode(ModelReceipt.self, from: data),
-              required.allSatisfy({ FileManager.default.fileExists(atPath: models.appendingPathComponent($0).path) }) else { return nil }
-        return receipt
-    }
-    /// Imports the fixed Files-visible folder once, only when no internal model is installed yet.
-    /// An empty or partially copied folder is treated as not ready, so launch never fails mid-transfer.
-    func importDefaultModelsIfComplete() throws -> ModelReceipt? {
-        guard modelReceipt() == nil, hasCompleteModelSet(at: defaultModelDirectory) else { return nil }
-        return try importModels(defaultModelDirectory)
-    }
-    /// User-triggered reload. Unlike the launch path, report incomplete/corrupt default folders clearly.
-    func importDefaultModels() throws -> ModelReceipt {
-        let missing = Self.requiredModels.filter {
-            !FileManager.default.fileExists(atPath: defaultModelDirectory.appendingPathComponent($0).path)
-        }
-        guard missing.isEmpty else {
-            throw BenchError("默认目录 SenseVoiceSmall_INT8 缺少：\(missing.joined(separator: "、"))")
-        }
-        return try importModels(defaultModelDirectory)
-    }
-    private func hasCompleteModelSet(at directory: URL, required: [String] = LocalStore.requiredModels) -> Bool {
-        return required.allSatisfy { name in
-            let url = directory.appendingPathComponent(name)
-            let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-            return values?.isRegularFile == true && (values?.fileSize ?? 0) > 0
-        }
-    }
-    func importModels(_ source: URL) throws -> ModelReceipt {
-        try importModelSet(source, required: Self.requiredModels, destination: models,
-                           manifestURL: modelManifestURL, version: "sense-voice-int8-2024-07-17")
-    }
-    private func importModelSet(_ source: URL, required: [String], destination: URL,
-                                manifestURL: URL?, version: String) throws -> ModelReceipt {
-        let access = source.startAccessingSecurityScopedResource()
-        defer { if access { source.stopAccessingSecurityScopedResource() } }
-        let manager = FileManager.default
-        let staging = root.appendingPathComponent("Import-" + UUID().uuidString)
-        try manager.createDirectory(at: staging, withIntermediateDirectories: true)
-        defer { try? manager.removeItem(at: staging) }
-        var hashes: [String: String] = [:]
-        for name in required {
-            let input = source.appendingPathComponent(name)
-            let values = try input.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-            guard values.isRegularFile == true, (values.fileSize ?? 0) > 0 else { throw BenchError("模型文件缺失或为空：\(name)") }
-            let output = staging.appendingPathComponent(name)
-            try manager.copyItem(at: input, to: output)
-            hashes[name] = try AudioFiles.hash(output)
-        }
-        guard let bundled = manifestURL else {
-            throw BenchError("App 缺少模型校验清单，请重新构建。")
-        }
-        let known = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: bundled))
-        guard required.allSatisfy({ known[$0] == hashes[$0] }) else {
-            throw BenchError("模型内容与此 Demo 指定版本不一致，请使用配套模型准备脚本。")
-        }
-        // If the preparation script supplied a manifest, reject changed/corrupt transfers.
-        let manifest = source.appendingPathComponent("manifest.json")
-        if manager.fileExists(atPath: manifest.path) {
-            let expected = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: manifest))
-            guard required.allSatisfy({ expected[$0] == hashes[$0] }) else { throw BenchError("模型 SHA-256 校验失败，请重新传输模型目录。") }
-        }
-        for name in ["LICENSE", "MODEL_LICENSE", "VAD_LICENSE"] where manager.fileExists(atPath: source.appendingPathComponent(name).path) {
-            try manager.copyItem(at: source.appendingPathComponent(name), to: staging.appendingPathComponent(name))
-        }
-        let receipt = ModelReceipt(version: version, files: hashes, importedAt: Date())
-        try JSONEncoder().encode(receipt).write(to: staging.appendingPathComponent("receipt.json"))
-        // Atomic directory swap keeps the old model intact if validation/copy fails.
-        _ = try manager.replaceItemAt(destination, withItemAt: staging)
-        var url = destination; var values = URLResourceValues(); values.isExcludedFromBackup = true
-        try url.setResourceValues(values)
-        return receipt
-    }
     func export(_ recording: Recording, environment: [String: String]) throws -> [URL] {
         let folder = try workFiles(recordingID: recording.id).directory(prefix: "Report-")
         var complete = false
@@ -266,7 +181,7 @@ actor LocalStore {
             catch { failures.append("\(label)：\(error.localizedDescription)") }
         }
         // These targets are independent on iOS. Attempt all of them even if one deletion fails.
-        for (label, url) in [("录音、结果及内部模型", root), ("SenseVoice 默认目录", defaultModelDirectory),
+        for (label, url) in [("录音、结果及内部模型", root),
                              ("Qwen 4 位默认目录", defaultQwenModelDirectory)] {
             attempt(label) { try AppFileSystem.removeIfPresent(url) }
         }
@@ -276,7 +191,7 @@ actor LocalStore {
             attempt("旧版临时文件") { try AppTemporaryFiles.removeLegacyFiles(in: legacy) }
         }
         attempt("重建内部空目录") { try Self.prepareDirectories(root: root) }
-        for var source in [defaultModelDirectory, defaultQwenModelDirectory] {
+        for var source in [defaultQwenModelDirectory] {
             attempt("重建 \(source.lastPathComponent) 空目录") {
                 try manager.createDirectory(at: source, withIntermediateDirectories: true)
                 var values = URLResourceValues(); values.isExcludedFromBackup = true
@@ -285,17 +200,17 @@ actor LocalStore {
         }
         // Success means every owned directory is empty, including abandoned imports/unknown leftovers.
         attempt("核对清理结果") {
-            let expected = Set(["Audio", "Records", "Models", "QwenWeightOnlyModels"])
+            let expected = Set(["Audio", "Records", "QwenWeightOnlyModels"])
             var allowed = expected
             // Alternate storage roots may place Documents/Temporary inside this directory.
-            for url in [defaultModelDirectory.deletingLastPathComponent(), temporaryFiles.root] {
+            for url in [defaultQwenModelDirectory.deletingLastPathComponent(), temporaryFiles.root] {
                 if url.deletingLastPathComponent().standardizedFileURL == root.standardizedFileURL { allowed.insert(url.lastPathComponent) }
             }
             let remaining = Set(try manager.contentsOfDirectory(atPath: root.path))
             guard expected.isSubset(of: remaining), remaining.isSubset(of: allowed) else {
                 throw BenchError("内部目录仍有残留或未能正确重建。")
             }
-            for url in [audio, records, models, qwenModels, defaultModelDirectory, defaultQwenModelDirectory, temporaryFiles.root] {
+            for url in [audio, records, qwenModels, defaultQwenModelDirectory, temporaryFiles.root] {
                 guard try manager.contentsOfDirectory(atPath: url.path).isEmpty else {
                     throw BenchError("\(url.lastPathComponent) 仍有未删除文件。")
                 }

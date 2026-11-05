@@ -1,13 +1,11 @@
 import Foundation
 
 public enum EngineID: String, Codable, CaseIterable, Identifiable, Sendable {
-    case senseVoice = "sensevoice_small_int8"
     case apple = "apple_speechtranscriber"
     case qwen = "qwen3_asr_0_6b_weight_only4"
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .senseVoice: return "SenseVoice"
         case .apple: return "Apple Speech"
         case .qwen: return "Qwen3-ASR 4 位"
         }
@@ -94,7 +92,6 @@ public struct Run: Codable, Identifiable, Sendable {
         self.engine = engine
         switch engine {
         case .apple: modelVersion = "system-managed/unknown"
-        case .senseVoice: modelVersion = "sense-voice-int8-2024-07-17"
         case .qwen: modelVersion = QwenASRModel.version
         }
     }

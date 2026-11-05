@@ -2,8 +2,8 @@ import Foundation
 
 /// Upgrade-only deletion rules. Retired engines are never exposed as runnable models.
 public enum RetiredDataCleanup {
-    public static let internalDirectories = ["LanguageIDModels", "QwenModels", "FunASRModels", "WhisperTurboModels"]
-    public static let sourceDirectories = ["WhisperTiny_INT8", "Qwen3ASR_0_6B_INT8", "FunASR_MLT_Nano_INT8", "WhisperLargeV3Turbo_INT8"]
+    public static let internalDirectories = ["Models", "LanguageIDModels", "QwenModels", "FunASRModels", "WhisperTurboModels"]
+    public static let sourceDirectories = ["SenseVoiceSmall_INT8", "WhisperTiny_INT8", "Qwen3ASR_0_6B_INT8", "FunASR_MLT_Nano_INT8", "WhisperLargeV3Turbo_INT8"]
 
     /// Filter before decoding EngineID so recordings from older versions remain readable.
     /// Original audio, user text and retained runs/corrections are preserved.

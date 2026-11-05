@@ -20,8 +20,6 @@ final class BenchViewModel: ObservableObject {
     @Published var recordedSeconds: Double = 0
     @Published var message = "导入模型并准备苹果默认语言资源后，即可离线对比。"
     @Published var error: String?
-    @Published var modelReceipt: ModelReceipt?
-    @Published var modelDetail = "正在检查默认模型目录…"
     @Published private(set) var appleSpeechSettings = AppleSpeechSettings()
     @Published private(set) var appleSupportedLocales: [String] = []
     @Published var qwenModelReceipt: ModelReceipt?
@@ -33,7 +31,6 @@ final class BenchViewModel: ObservableObject {
     @Published var showShare = false
     @Published var evaluations: [UUID: RunEvaluation] = [:]
     private var store: LocalStore?
-    private let sense = SenseVoiceEngine()
     private let apple = AppleSpeechEngine()
     private let qwen = QwenSpeechEngine()
     private let deepSeekCorrector = DeepSeekTextCorrector()
@@ -55,9 +52,9 @@ final class BenchViewModel: ObservableObject {
     var appleReady: Bool { speech.installed && speech.available }
     var appleLocaleIdentifier: String { appleSpeechSettings.localeIdentifier }
     var appleLocaleOptions: [String] { Array(Set(appleSupportedLocales + [appleLocaleIdentifier])).sorted() }
-    var bothReady: Bool { modelReceipt != nil && appleReady }
+    var comparisonReady: Bool { appleReady && qwenModelReceipt != nil }
     var comparisonEngines: [EngineID] {
-        [.senseVoice, .apple] + (qwenModelReceipt == nil ? [] : [.qwen])
+        (appleReady ? [.apple] : []) + (qwenModelReceipt == nil ? [] : [.qwen])
     }
 
     init() {
@@ -75,20 +72,6 @@ final class BenchViewModel: ObservableObject {
 
     func refresh() async {
         refreshDeepSeekKeyStatus()
-        do {
-            if let receipt = try await store?.importDefaultModelsIfComplete() {
-                modelReceipt = receipt
-                message = "已从默认目录 SenseVoiceSmall_INT8 载入模型。"
-            }
-        } catch {
-            modelDetail = "默认目录模型校验失败：\(error.localizedDescription)"
-        }
-        modelReceipt = await store?.modelReceipt()
-        if modelReceipt != nil {
-            modelDetail = "模型文件已就绪；下次启动无需再次选择目录。"
-        } else if modelDetail == "正在检查默认模型目录…" {
-            modelDetail = "默认目录为空或尚未传完模型；也可手动选择其他目录。"
-        }
         appleSupportedLocales = await apple.supportedLocaleIdentifiers()
         await refreshAppleSpeechStatus()
         do {
@@ -168,36 +151,6 @@ final class BenchViewModel: ObservableObject {
                 showRecorder = false
                 message = "音频已保存，各套引擎将使用这一份源文件。"
             } catch { self.error = error.localizedDescription }
-        }
-    }
-
-    func importModels(_ url: URL) {
-        guard !busy, !isRecording, let store else { return }
-        begin("正在复制并校验模型，可能需要一些时间…")
-        task = Task {
-            defer { finish() }
-            do {
-                modelReceipt = try await store.importModels(url)
-                modelDetail = "已从手工选择的目录载入；模型已保存到 App 内部。"
-                message = "模型文件已就绪，首次运行将检查能否初始化。"
-            }
-            catch { self.error = error.localizedDescription }
-        }
-    }
-
-    func importDefaultModels() {
-        guard !busy, !isRecording, let store else { return }
-        begin("正在从默认目录载入并校验模型…")
-        task = Task {
-            defer { finish() }
-            do {
-                modelReceipt = try await store.importDefaultModels()
-                modelDetail = "已从默认目录 SenseVoiceSmall_INT8 载入模型。"
-                message = "默认目录模型已就绪，首次运行将检查能否初始化。"
-            } catch {
-                self.error = error.localizedDescription
-                modelDetail = "默认目录尚不可用；可补齐文件或手动选择目录。"
-            }
         }
     }
 
@@ -345,13 +298,11 @@ final class BenchViewModel: ObservableObject {
         stopPlayback(); selectedID = recordingID
         begin("开始转写…", recordingID: recordingID, activity: .recognition)
         let flag = cancellation
-        let receipt = modelReceipt
         let appleSettings = appleSpeechSettings
         let qwenReceipt = qwenModelReceipt
         task = Task {
             defer { finish() }
             let source = await store.audioURL(recording)
-            let models = await store.models
             let qwenModels = await store.qwenModels
             let workFiles = await store.workFiles(recordingID: recordingID)
             let temporaryFiles = await store.temporaryFiles
@@ -374,12 +325,7 @@ final class BenchViewModel: ObservableObject {
                 var run = pending
                 let engine = run.engine
                 run.configuration["execution_state"] = "executing"
-                if engine == .senseVoice {
-                    run.configuration.merge(receipt?.files.mapKeys { "model_sha256_" + $0 } ?? [:]) { _, new in new }
-                    run.configuration.merge(["language": "auto", "threads": "2",
-                                             "provider": "cpu", "sample_rate": "16000", "itn": "true",
-                                             "sherpa_onnx": "1.13.8", "onnxruntime": "1.28.2"]) { _, new in new }
-                } else if engine == .qwen {
+                if engine == .qwen {
                     run.configuration.merge(qwenReceipt?.files.mapKeys { "qwen_model_sha256_" + $0 } ?? [:]) { _, new in new }
                     run.configuration.merge(["qwen_language_strategy": "model_native_auto", "offline": "true",
                         "provider": "cpu", "threads": "2", "sample_rate": "16000",
@@ -395,11 +341,7 @@ final class BenchViewModel: ObservableObject {
                         await self?.received(segment, runID: runID, recordingID: recording.id, flag: flag)
                     }
                     let output: EngineOutput
-                    if engine == .senseVoice {
-                        guard receipt != nil else { throw BenchError("请先导入完整的 SenseVoice 模型目录。") }
-                        output = try await sense.transcribe(source: source, models: models, cancellation: flag,
-                                                           temporaryFiles: workFiles, progress: progress)
-                    } else if engine == .qwen {
+                    if engine == .qwen {
                         guard qwenReceipt != nil else { throw BenchError("请先导入完整的 Qwen3ASR_0_6B_WeightOnly4 模型目录。") }
                         output = try await qwen.transcribe(source: source, models: qwenModels, runID: runID,
                             cancellation: flag, temporaryFiles: workFiles, progress: progress)
@@ -444,16 +386,9 @@ final class BenchViewModel: ObservableObject {
         }
     }
 
-    func runBoth(recordingID: UUID) {
-        guard idle else { return }
-        guard bothReady else { error = "请先到设置完成 SenseVoice 模型和苹果默认语言资源配置。"; return }
-        run([.senseVoice, .apple], recordingID: recordingID)
-    }
-
     func runComparison(recordingID: UUID) {
-        guard qwenModelReceipt != nil else { runBoth(recordingID: recordingID); return }
         guard idle else { return }
-        guard bothReady else { error = "请先到设置完成 SenseVoice 模型和苹果默认语言资源配置；Qwen 也可在详情中单独运行。"; return }
+        guard !comparisonEngines.isEmpty else { error = "请先在设置中准备 Apple Speech 语言资源或载入 Qwen 模型。"; return }
         run(comparisonEngines, recordingID: recordingID)
     }
 
@@ -554,9 +489,8 @@ final class BenchViewModel: ObservableObject {
             do {
                 try await store.removeAllData()
                 recordings = []; selectedID = nil; evaluations = [:]
-                shareFiles = []; modelReceipt = nil; qwenModelReceipt = nil; recordingURL = nil
+                shareFiles = []; qwenModelReceipt = nil; recordingURL = nil
                 appleSpeechSettings = AppleSpeechSettings()
-                modelDetail = "默认目录已清空；可重新传入 SenseVoiceSmall_INT8。"
                 qwenModelDetail = "默认目录已清空；可重新传入 Qwen3ASR_0_6B_WeightOnly4。"
                 await apple.releaseReservations()
                 await refresh()
@@ -567,9 +501,7 @@ final class BenchViewModel: ObservableObject {
                     recordings = remaining
                     selectedID = recordings.first?.id
                 }
-                modelReceipt = await store.modelReceipt()
                 qwenModelReceipt = await store.qwenModelReceipt()
-                if modelReceipt == nil { modelDetail = "模型已清除或清理未完成，请检查后重新导入。" }
                 if qwenModelReceipt == nil { qwenModelDetail = "4 位模型已清除或清理未完成，请检查后重新导入。" }
                 self.error = (["清理未全部完成：\(error.localizedDescription)。可重试。", keyRemovalError].compactMap { $0 }).joined(separator: " ")
             }

@@ -1,7 +1,7 @@
 import Foundation
 import VoiceBenchCore
 
-/// Import the fixed 4-bit model independently of SenseVoice.
+/// Import and validate the fixed 4-bit recognition model.
 extension LocalStore {
     func qwenModelReceipt() -> ModelReceipt? {
         qwenReceipt(at: qwenModels, required: QwenASRModel.requiredFiles, version: QwenASRModel.version)

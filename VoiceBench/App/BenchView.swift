@@ -20,7 +20,7 @@ struct BenchView: View {
                             RecordingCard(model: model, recording: recording) { pendingDeletion = recording }
                         }
                     }
-                    if !model.bothReady {
+                    if !model.comparisonReady {
                         NavigationLink {
                             BenchSettingsView(model: model)
                         } label: {

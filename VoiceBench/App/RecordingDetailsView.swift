@@ -52,8 +52,6 @@ struct RecordingDetailsView: View {
                 }
                 Section {
                     DisclosureGroup("调试运行") {
-                        Button("仅 SenseVoice") { model.run([.senseVoice], recordingID: recordingID) }
-                            .disabled(!model.idle || model.modelReceipt == nil)
                         Button("仅 Apple") { model.run([.apple], recordingID: recordingID) }
                             .disabled(!model.idle || !model.appleReady)
                         Button("仅 \(EngineID.qwen.title)") { model.run([.qwen], recordingID: recordingID) }

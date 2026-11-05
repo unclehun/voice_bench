@@ -13,7 +13,7 @@ settings:
     SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
     CODE_SIGNING_ALLOWED: NO
     SWIFT_STRICT_CONCURRENCY: targeted
-    MARKETING_VERSION: "0.12.1"
+    MARKETING_VERSION: "0.13.0"
     CURRENT_PROJECT_VERSION: "1"
   configs:
     Release:
@@ -32,8 +32,6 @@ targets:
         buildPhase: resources
       - path: licenses
         type: folder
-        buildPhase: resources
-      - path: config/model-manifest.json
         buildPhase: resources
       - path: config/qwen-weight-only-model-manifest.json
         buildPhase: resources

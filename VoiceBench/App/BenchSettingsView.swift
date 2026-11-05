@@ -4,22 +4,12 @@ import VoiceBenchCore
 
 struct BenchSettingsView: View {
     @ObservedObject var model: BenchViewModel
-    @State private var sensePicker = false
     @State private var qwenPicker = false
     @State private var confirmClear = false
     @State private var deepSeekAPIKey = ""
 
     var body: some View {
         Form {
-            Section("模型选择和配置") {
-                status("SenseVoiceSmall INT8", detail: model.modelDetail, ready: model.modelReceipt != nil)
-                Button("从默认目录载入 SenseVoice") { model.importDefaultModels() }.disabled(!model.idle)
-                Button("选择其他 SenseVoice 目录…", systemImage: "folder") { sensePicker = true }.disabled(!model.idle)
-                Text("文件 → 在我的 iPhone → 语音对比 → SenseVoiceSmall_INT8")
-                    .font(.caption).foregroundStyle(.secondary)
-                Text("SenseVoice 自动检测录音语言，无需手动选择。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             Section("Apple Speech") {
                 Picker("默认识别语言", selection: Binding(get: { model.appleLocaleIdentifier }, set: model.setAppleLocaleIdentifier)) {
                     ForEach(model.appleLocaleOptions, id: \.self) { identifier in
@@ -76,12 +66,6 @@ struct BenchSettingsView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("检查状态", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
                     .labelStyle(.iconOnly).disabled(!model.idle)
-            }
-        }
-        .fileImporter(isPresented: $sensePicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { model.importModels(url) }
-            case .failure(let error): model.error = error.localizedDescription
             }
         }
         .fileImporter(isPresented: $qwenPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in

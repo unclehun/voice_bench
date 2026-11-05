@@ -26,7 +26,7 @@ DeepSeek 使用 `/beta/chat/completions`、强制单个 `submit_document_correct
 
 ## 验证
 
-新增两组测试覆盖全文工作流和 DeepSeek 实际客户端（URLProtocol 模拟接口），连同展示及旧数据清理测试共 40 组：长文一次完整传入、背景保真、远处证据、重复词全文偏移、20 条建议一次返回、同全文重试、取消、失败保留原文、不完整输出、逐条复核、存储、旧版兼容、CER、schema 必需字段、缺字段与无效 JSON、空白／截断／错误工具、鉴权及上下文错误等。
+新增两组测试覆盖全文工作流和 DeepSeek 实际客户端（URLProtocol 模拟接口），连同展示及旧数据清理测试共 42 组：长文一次完整传入、背景保真、远处证据、重复词全文偏移、20 条建议一次返回、同全文重试、取消、失败保留原文、不完整输出、逐条复核、存储、旧版兼容、CER、schema 必需字段、缺字段与无效 JSON、空白／截断／错误工具、鉴权及上下文错误等。
 
 完整核心模块已在本机由 swiftc 编译通过；测试方法使用独立断言驱动通过。标准 `swift test` 受当前 Command Line Tools 缺少 Xcode PlatformPath／XCTest 阻塞，CI 保持运行标准测试。SwiftUI 源码通过语法解析；完整 iOS 类型检查及安装仍需完整 Xcode。
 
@@ -35,7 +35,6 @@ DeepSeek 使用 `/beta/chat/completions`、强制单个 `submit_document_correct
 | 识别结果 | 全文字数 | 请求次数 | 状态 | 返回建议数 |
 |---|---:|---:|---|---:|
 | Qwen3-ASR 4 位 | 379 | 1 | completed，完整返回 | 6 |
-| SenseVoice | 368 | 1 | completed，完整返回 | 7 |
 
 测试调用没有修改手机的纠错记录；本地证据位于 build/diagnostics/whole-document-v3，未包含在源码包中。临时凭据副本在测试后删除。
 

@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		065C606A93592887A5EB98F5 /* PCMFileReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC970CCAF6CCDA56E245FE5 /* PCMFileReader.swift */; };
 		2EB499185C92AAEA0FEE12DC /* AppleSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */; };
-		2FEBDE7BD4A196C2146881BD /* SenseVoiceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */; };
+		38696E752CB9F2AD24D2DBF4 /* EngineOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E2477E98EA17997062E1A9 /* EngineOutput.swift */; };
 		470CF4D6AE121BE45323BBD6 /* onnxruntime.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C8345A3EE62560CE9473FA30 /* onnxruntime.xcframework */; };
 		47E0F8A6F9038192202F586E /* AppleSpeechSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADC9063F84D20236DEF2700A /* AppleSpeechSettingsStore.swift */; };
 		48CD0A70D28FAEF6091E0545 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = DCAF3C3555C2CCB14DEA2F9E /* THIRD_PARTY_NOTICES.md */; };
@@ -24,7 +24,6 @@
 		8E8BB5BF0511C887A3234DEE /* DeepSeekRequestLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9650E16607BC9502AEDD81A1 /* DeepSeekRequestLogsView.swift */; };
 		98668D6DF1B8B9A6FC158535 /* RunResultCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C14DE4590B8CA6450854B1 /* RunResultCard.swift */; };
 		9FCE048E15914717C4534F9A /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 41369DDD178EF59E2F87F316 /* CoreML.framework */; };
-		A37D2FD34B5CD66E20E5E618 /* model-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = A7148698F0BFFF89EB1F680E /* model-manifest.json */; };
 		A6B0E6357AF0608228E851C1 /* BenchComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFAC48F57F95795D0A41AAFF /* BenchComponents.swift */; };
 		A91AFEF87E8AD1FA615F7E25 /* LocalStore+Qwen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6111F43FCF2190F06602E303 /* LocalStore+Qwen.swift */; };
 		A92B14A82AA05A6F785DD632 /* CorrectionResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B5F0132A9A6B35CC7B00EA /* CorrectionResultsView.swift */; };
@@ -59,7 +58,6 @@
 		6111F43FCF2190F06602E303 /* LocalStore+Qwen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalStore+Qwen.swift"; sourceTree = "<group>"; };
 		70B21BAD8AD25E04275023BB /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
 		733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechEngine.swift; sourceTree = "<group>"; };
-		753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenseVoiceEngine.swift; sourceTree = "<group>"; };
 		76A69D53F4B7C7A2E60AA21D /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "Vendor/sherpa-onnx.xcframework"; sourceTree = "<group>"; };
 		7B1B8060696C8458FC687E13 /* qwen-weight-only-model-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "qwen-weight-only-model-manifest.json"; sourceTree = "<group>"; };
 		8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenSpeechEngine.swift; sourceTree = "<group>"; };
@@ -69,9 +67,9 @@
 		99EDD6C38722E840CAFE1640 /* voice_bench */ = {isa = PBXFileReference; lastKnownFileType = folder; name = voice_bench; path = .; sourceTree = SOURCE_ROOT; };
 		9F9AFF8597E67D409A7E17BD /* AppleSpeechDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechDiagnostics.swift; sourceTree = "<group>"; };
 		A3B6F58AC6D6462F8A28F55D /* Speech.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Speech.framework; path = System/Library/Frameworks/Speech.framework; sourceTree = SDKROOT; };
-		A7148698F0BFFF89EB1F680E /* model-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "model-manifest.json"; sourceTree = "<group>"; };
 		AA91BB880360937136759484 /* BenchSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchSettingsView.swift; sourceTree = "<group>"; };
 		ADC9063F84D20236DEF2700A /* AppleSpeechSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechSettingsStore.swift; sourceTree = "<group>"; };
+		B8E2477E98EA17997062E1A9 /* EngineOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineOutput.swift; sourceTree = "<group>"; };
 		BE1640A62FA32CB4481B3771 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BFAC48F57F95795D0A41AAFF /* BenchComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchComponents.swift; sourceTree = "<group>"; };
 		C8345A3EE62560CE9473FA30 /* onnxruntime.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = Vendor/onnxruntime.xcframework; sourceTree = "<group>"; };
@@ -118,8 +116,8 @@
 			children = (
 				9F9AFF8597E67D409A7E17BD /* AppleSpeechDiagnostics.swift */,
 				733DFF0863D012385FF93960 /* AppleSpeechEngine.swift */,
+				B8E2477E98EA17997062E1A9 /* EngineOutput.swift */,
 				8BF56D1BE17A70A15F53008C /* QwenSpeechEngine.swift */,
-				753D3D6C10E2E484E6E2C81D /* SenseVoiceEngine.swift */,
 			);
 			path = Engines;
 			sourceTree = "<group>";
@@ -196,7 +194,6 @@
 		C30A74877FACE1425D978866 /* config */ = {
 			isa = PBXGroup;
 			children = (
-				A7148698F0BFFF89EB1F680E /* model-manifest.json */,
 				7B1B8060696C8458FC687E13 /* qwen-weight-only-model-manifest.json */,
 			);
 			path = config;
@@ -276,7 +273,6 @@
 				49EC8DF256FA429ACCD162DA /* Assets.xcassets in Resources */,
 				48CD0A70D28FAEF6091E0545 /* THIRD_PARTY_NOTICES.md in Resources */,
 				5926C5209FA482E20187932E /* licenses in Resources */,
-				A37D2FD34B5CD66E20E5E618 /* model-manifest.json in Resources */,
 				57E7D3531AF9A5814D1F9E4F /* qwen-weight-only-model-manifest.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -300,6 +296,7 @@
 				A92B14A82AA05A6F785DD632 /* CorrectionResultsView.swift in Sources */,
 				5E3DA335617DE657D1F8B47E /* DeepSeekCredentialStore.swift in Sources */,
 				8E8BB5BF0511C887A3234DEE /* DeepSeekRequestLogsView.swift in Sources */,
+				38696E752CB9F2AD24D2DBF4 /* EngineOutput.swift in Sources */,
 				A91AFEF87E8AD1FA615F7E25 /* LocalStore+Qwen.swift in Sources */,
 				AC149280006A93A7413674B4 /* LocalStore.swift in Sources */,
 				065C606A93592887A5EB98F5 /* PCMFileReader.swift in Sources */,
@@ -308,7 +305,6 @@
 				F4E1EA9821ED845D337C27AB /* RecordingDetailsView.swift in Sources */,
 				E6A77D00A88C0E4F9F2C8030 /* RecordingSheet.swift in Sources */,
 				98668D6DF1B8B9A6FC158535 /* RunResultCard.swift in Sources */,
-				2FEBDE7BD4A196C2146881BD /* SenseVoiceEngine.swift in Sources */,
 				AC7C72EB89CA290847180BE6 /* VoiceBenchApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -370,7 +366,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.12.1;
+				MARKETING_VERSION = 0.13.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -459,7 +455,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.12.1;
+				MARKETING_VERSION = 0.13.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
